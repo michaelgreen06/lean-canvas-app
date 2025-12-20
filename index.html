@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lean Canvas Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #666;
+        }
+
+        /* Wizard Mode Styles */
+        #wizardView {
+            display: block;
+        }
+
+        #canvasView {
+            display: none;
+        }
+
+        .wizard-card {
+            background: white;
+            border-radius: 8px;
+            padding: 40px;
+            max-width: 700px;
+            margin: 0 auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            margin-bottom: 30px;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            transition: width 0.3s ease;
+        }
+
+        .field-title {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .brief-instruction {
+            font-size: 1rem;
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        .detailed-instruction {
+            margin-bottom: 20px;
+        }
+
+        .detail-toggle {
+            background: #f0f0f0;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .detail-toggle:hover {
+            background: #e0e0e0;
+        }
+
+        .detail-content {
+            display: none;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            color: #555;
+            line-height: 1.6;
+            margin-top: 10px;
+        }
+
+        .detail-content.active {
+            display: block;
+        }
+
+        .input-area {
+            margin-bottom: 25px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Canvas View Styles */
+        .canvas-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .canvas-title-input {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .canvas-grid {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(3, auto);
+            gap: 1px;
+            background: #ddd;
+        }
+
+        .canvas-box {
+            background: white;
+            padding: 20px;
+            min-height: 200px;
+            position: relative;
+        }
+
+        .canvas-box h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .canvas-box-content {
+            font-size: 0.95rem;
+            white-space: pre-wrap;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        /* Grid layout matching standard Lean Canvas */
+        .box-problem { grid-column: 1; grid-row: 1; }
+        .box-solution { grid-column: 2; grid-row: 1; }
+        .box-uniqueValueProposition { grid-column: 3; grid-row: 1; }
+        .box-unfairAdvantage { grid-column: 4; grid-row: 1; }
+        .box-customerSegments { grid-column: 5; grid-row: 1; }
+
+        .box-existingAlternatives { grid-column: 1; grid-row: 2; }
+        .box-keyMetrics { grid-column: 2; grid-row: 2; }
+        .box-highLevelConcept { grid-column: 3; grid-row: 2; }
+        .box-channels { grid-column: 4; grid-row: 2; }
+        .box-earlyAdopters { grid-column: 5; grid-row: 2; }
+
+        .box-costStructure { grid-column: 1 / 4; grid-row: 3; }
+        .box-revenueStreams { grid-column: 4 / 6; grid-row: 3; }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+            }
+            .canvas-controls, header {
+                display: none;
+            }
+            .canvas-grid {
+                box-shadow: none;
+                border: 2px solid #000;
+            }
+            .canvas-box {
+                border: 1px solid #333;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .wizard-card {
+                padding: 20px;
+            }
+
+            .canvas-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+            }
+
+            .canvas-box {
+                grid-column: 1 !important;
+                grid-row: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Lean Canvas Generator</h1>
+            <p>Walk through 12 fields to create your business model canvas</p>
+        </header>
+
+        <!-- Wizard View -->
+        <div id="wizardView">
+            <div class="wizard-card">
+                <div class="progress-bar">
+                    <div class="progress-text">
+                        <span id="progressText">Question 1 of 12</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progressFill" style="width: 8.33%"></div>
+                    </div>
+                </div>
+
+                <h2 class="field-title" id="fieldTitle"></h2>
+                <p class="brief-instruction" id="briefInstruction"></p>
+
+                <div class="detailed-instruction">
+                    <button class="detail-toggle" id="detailToggle">
+                        <span id="toggleIcon">▶</span>
+                        <span>Show detailed instructions</span>
+                    </button>
+                    <div class="detail-content" id="detailContent"></div>
+                </div>
+
+                <div class="input-area">
+                    <textarea
+                        id="fieldInput"
+                        placeholder="Enter your answer here..."
+                        autofocus
+                    ></textarea>
+                </div>
+
+                <div class="navigation">
+                    <button class="btn-secondary" id="backBtn" disabled>← Back</button>
+                    <button class="btn-primary" id="nextBtn">Next →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas View -->
+        <div id="canvasView">
+            <div class="canvas-controls">
+                <input
+                    type="text"
+                    class="canvas-title-input"
+                    id="canvasTitle"
+                    placeholder="Canvas Title (optional)"
+                />
+                <div class="export-buttons">
+                    <button class="btn-secondary" id="editBtn">✏️ Edit</button>
+                    <button class="btn-primary" id="exportMdBtn">📄 Export Markdown</button>
+                    <button class="btn-primary" id="exportPdfBtn">🖨️ Print/PDF</button>
+                    <button class="btn-secondary" id="copyBtn">📋 Copy</button>
+                    <button class="btn-secondary" id="newCanvasBtn">🔄 New Canvas</button>
+                </div>
+            </div>
+
+            <div class="canvas-grid" id="canvasGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        // Field Definitions (ordered: 1a, 1b, 2a, 2b, 3a, 3b, 4, 5, 6, 7, 8, 9)
+        const FIELDS = [
+            {
+                id: 'customerSegments',
+                title: 'Customer Segments',
+                brief: 'List your target customers and users',
+                detailed: "A customer is someone who pays for your product. A user does not. Your list of customer segments should represent the total addressable market (TAM) for your idea. Be specific - not 'everyone'. Include demographics, behaviors, and needs. If you have different user types (e.g., buyers vs users), list both. Start narrow - you can expand later.",
+                placeholder: "Primary segment:\nSecondary segment:"
+            },
+            {
+                id: 'earlyAdopters',
+                title: 'Early Adopters',
+                brief: 'List characteristics of your ideal customer',
+                detailed: "Your objective is to define an early adopter, not a mainstream customer. Your early adopters represent a specific subset of your total addressable market - this is your ideal starting customer segment (also called your ideal customer profile). Your sole job should be to find and target early adopters, which requires bold, clear, and specific messaging.",
+                placeholder: "Characteristics:\n- \n- \n- "
+            },
+            {
+                id: 'problem',
+                title: 'Problem',
+                brief: "List your customer's top 3 problems",
+                detailed: "What are the most painful problems your customers face? Focus on problems worth solving - ones customers actively try to solve today. Prioritize the top one to three issues that you believe are most pressing for your customers.",
+                placeholder: "1. Problem one\n2. Problem two\n3. Problem three"
+            },
+            {
+                id: 'existingAlternatives',
+                title: 'Existing Alternatives',
+                brief: 'List how these problems are solved today',
+                detailed: "Document how you think your early adopters currently address these problems. Unless you are solving a brand new problem (unlikely), solutions probably already exist. These solutions may not be from an obvious competitor - they could be email, spreadsheets, or manual processes.",
+                placeholder: "Current solutions customers use..."
+            },
+            {
+                id: 'uniqueValueProposition',
+                title: 'Unique Value Proposition',
+                brief: 'Single, clear, compelling message that turns an unaware visitor into an interested prospect',
+                detailed: "Defining a UVP forces you to answer the question: why is your product different and worth paying attention to? Focus on outcomes - a good UVP gets inside customers' heads and focuses on the benefits they will derive from using your product. The key to crafting an effective UVP is connecting it to the number one problem you are solving for your customers. Limit to 120 characters if possible.",
+                placeholder: "We help X do Y by Z..."
+            },
+            {
+                id: 'highLevelConcept',
+                title: 'High-Level Concept',
+                brief: 'List your X for Y analogy (e.g., YouTube = Flickr for videos)',
+                detailed: "An analogy that quickly explains your concept. Format: '[Known thing] for [your market]'. Examples: 'YouTube for education' or 'Uber for dog walking'. The high-concept pitch should not be confused with a UVP and is not intended to be used on your landing page. It's effectively used in scenarios where you want to quickly get your idea across and make it easy to spread.",
+                placeholder: "X for Y"
+            },
+            {
+                id: 'solution',
+                title: 'Solution',
+                brief: 'Outline possible solutions for each problem',
+                detailed: "Know that it is fairly common for your customer problems to get reprioritized or completely replaced with new ones after just a few customer conversations. Simply sketch out the simplest thing you could possibly build to address each problem listed on your Lean Canvas. Bind a solution to your problem as late as possible.",
+                placeholder: "Solution for problem 1:\nSolution for problem 2:\nSolution for problem 3:"
+            },
+            {
+                id: 'channels',
+                title: 'Channels',
+                brief: 'List your paths to customers',
+                detailed: "Failing to build a clear path to customers is among the top reasons why startups fail. It's important to think about your scalable channels from day one so that you can start building and testing them early. The initial goal of a startup is to learn, not to scale. So, at first, it's OK to rely on any channels that get you in front of potential customers.",
+                placeholder: "1. Channel one\n2. Channel two\n3. Channel three"
+            },
+            {
+                id: 'revenueStreams',
+                title: 'Revenue Streams',
+                brief: 'List your sources of revenue',
+                detailed: "How will you make money? The price you pick determines your customer segment. Getting paid is the first form of validation - getting a customer to give you money is one of the hardest challenges. Include pricing model (subscription, one-time, freemium, transaction fee), price points, and revenue per customer.",
+                placeholder: "Primary revenue:\nSecondary revenue:\nPricing model:"
+            },
+            {
+                id: 'costStructure',
+                title: 'Cost Structure',
+                brief: 'List your fixed and variable costs',
+                detailed: "What will it cost you to define, build, and launch your MVP? What will your ongoing burn rate look like (salaries, office rent, etc.)? First, model the runway you will need to define, build, and launch your MVP. Then revise after you get there. Include customer acquisition costs, hosting/infrastructure, salaries, and tools/services.",
+                placeholder: "Fixed costs:\n- \nVariable costs:\n- "
+            },
+            {
+                id: 'keyMetrics',
+                title: 'Key Metrics',
+                brief: 'List key numbers telling how your business is doing today',
+                detailed: "List the top three to five metrics that you'll use to measure whether your business model is working. Instead of measuring how much stuff you're building (outputs), focus on measuring how many people are using your product and how (outcomes). The right outcome metrics tend to be customer-centric versus product-centric. Examples include: Number of new customers, Monthly recurring revenue (MRR), Customer lifetime value (LTV), Daily/Monthly active users.",
+                placeholder: "1. Metric one\n2. Metric two\n3. Metric three"
+            },
+            {
+                id: 'unfairAdvantage',
+                title: 'Unfair Advantage',
+                brief: "Something that can't easily be copied or bought",
+                detailed: "A real unfair advantage is something that cannot be easily copied or bought. Examples include: insider information, the right 'expert' endorsements, a dream team, personal authority, network effects, platform effects, community, existing customers, organic SEO ranking. If an unfair advantage story isn't readily apparent, it is always better to leave this box blank rather than stuffing it with a weak unfair advantage. The good news is that you don't need one from the outset.",
+                placeholder: "Our advantage is..."
+            }
+        ];
+
+        // State Management
+        let state = {
+            currentField: 0,
+            canvasTitle: '',
+            fields: {},
+            source: 'manual',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        // Initialize fields
+        FIELDS.forEach(field => {
+            state.fields[field.id] = { value: '', notes: '' };
+        });
+
+        // Load from localStorage if exists
+        const savedState = localStorage.getItem('leanCanvasState');
+        if (savedState) {
+            state = { ...state, ...JSON.parse(savedState) };
+        }
+
+        // DOM Elements
+        const wizardView = document.getElementById('wizardView');
+        const canvasView = document.getElementById('canvasView');
+        const fieldTitle = document.getElementById('fieldTitle');
+        const briefInstruction = document.getElementById('briefInstruction');
+        const detailContent = document.getElementById('detailContent');
+        const fieldInput = document.getElementById('fieldInput');
+        const backBtn = document.getElementById('backBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressText = document.getElementById('progressText');
+        const progressFill = document.getElementById('progressFill');
+        const detailToggle = document.getElementById('detailToggle');
+        const toggleIcon = document.getElementById('toggleIcon');
+        const canvasTitle = document.getElementById('canvasTitle');
+
+        // Detail Toggle
+        detailToggle.addEventListener('click', () => {
+            detailContent.classList.toggle('active');
+            if (detailContent.classList.contains('active')) {
+                toggleIcon.textContent = '▼';
+                detailToggle.querySelector('span:last-child').textContent = 'Hide detailed instructions';
+            } else {
+                toggleIcon.textContent = '▶';
+                detailToggle.querySelector('span:last-child').textContent = 'Show detailed instructions';
+            }
+        });
+
+        // Render Current Field
+        function renderField() {
+            const field = FIELDS[state.currentField];
+            fieldTitle.textContent = field.title;
+            briefInstruction.textContent = field.brief;
+            detailContent.textContent = field.detailed;
+            fieldInput.value = state.fields[field.id].value;
+            fieldInput.placeholder = field.placeholder;
+
+            // Update progress
+            const progress = ((state.currentField + 1) / FIELDS.length) * 100;
+            progressFill.style.width = `${progress}%`;
+            progressText.textContent = `Question ${state.currentField + 1} of ${FIELDS.length}`;
+
+            // Update buttons
+            backBtn.disabled = state.currentField === 0;
+            nextBtn.textContent = state.currentField === FIELDS.length - 1 ? 'View Canvas →' : 'Next →';
+
+            // Reset detail toggle
+            detailContent.classList.remove('active');
+            toggleIcon.textContent = '▶';
+            detailToggle.querySelector('span:last-child').textContent = 'Show detailed instructions';
+
+            // Focus input
+            fieldInput.focus();
+        }
+
+        // Save Current Field
+        function saveCurrentField() {
+            const field = FIELDS[state.currentField];
+            state.fields[field.id].value = fieldInput.value;
+            state.updatedAt = new Date().toISOString();
+            localStorage.setItem('leanCanvasState', JSON.stringify(state));
+        }
+
+        // Navigation
+        backBtn.addEventListener('click', () => {
+            saveCurrentField();
+            state.currentField--;
+            renderField();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            saveCurrentField();
+            if (state.currentField < FIELDS.length - 1) {
+                state.currentField++;
+                renderField();
+            } else {
+                showCanvas();
+            }
+        });
+
+        // Auto-save on input
+        fieldInput.addEventListener('input', () => {
+            saveCurrentField();
+        });
+
+        // Keyboard navigation
+        fieldInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.metaKey) {
+                nextBtn.click();
+            }
+        });
+
+        // Show Canvas View
+        function showCanvas() {
+            wizardView.style.display = 'none';
+            canvasView.style.display = 'block';
+            canvasTitle.value = state.canvasTitle || '';
+            renderCanvas();
+        }
+
+        // Render Canvas Grid
+        function renderCanvas() {
+            const grid = document.getElementById('canvasGrid');
+            grid.innerHTML = '';
+
+            FIELDS.forEach(field => {
+                const box = document.createElement('div');
+                box.className = `canvas-box box-${field.id}`;
+                box.innerHTML = `
+                    <h3>${field.title}</h3>
+                    <div class="canvas-box-content">${state.fields[field.id].value || '<em>Not filled</em>'}</div>
+                `;
+                grid.appendChild(box);
+            });
+        }
+
+        // Edit Button
+        document.getElementById('editBtn').addEventListener('click', () => {
+            canvasView.style.display = 'none';
+            wizardView.style.display = 'block';
+            renderField();
+        });
+
+        // Export to Markdown
+        document.getElementById('exportMdBtn').addEventListener('click', () => {
+            const title = canvasTitle.value || 'Lean Canvas';
+            let markdown = `# ${title}\n\n`;
+            markdown += `*Created: ${new Date(state.createdAt).toLocaleDateString()}*\n`;
+            markdown += `*Updated: ${new Date(state.updatedAt).toLocaleDateString()}*\n\n`;
+            markdown += `---\n\n`;
+
+            FIELDS.forEach(field => {
+                markdown += `## ${field.title}\n\n`;
+                markdown += `${state.fields[field.id].value || '_Not filled_'}\n\n`;
+            });
+
+            const blob = new Blob([markdown], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Print/PDF
+        document.getElementById('exportPdfBtn').addEventListener('click', () => {
+            window.print();
+        });
+
+        // Copy to Clipboard
+        document.getElementById('copyBtn').addEventListener('click', async () => {
+            const title = canvasTitle.value || 'Lean Canvas';
+            let text = `${title}\n${'='.repeat(title.length)}\n\n`;
+
+            FIELDS.forEach(field => {
+                text += `${field.title}\n${'-'.repeat(field.title.length)}\n`;
+                text += `${state.fields[field.id].value || 'Not filled'}\n\n`;
+            });
+
+            try {
+                await navigator.clipboard.writeText(text);
+                const btn = document.getElementById('copyBtn');
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            } catch (err) {
+                alert('Failed to copy to clipboard');
+            }
+        });
+
+        // New Canvas
+        document.getElementById('newCanvasBtn').addEventListener('click', () => {
+            if (confirm('Start a new canvas? Current canvas will be lost unless you exported it.')) {
+                state = {
+                    currentField: 0,
+                    canvasTitle: '',
+                    fields: {},
+                    source: 'manual',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                FIELDS.forEach(field => {
+                    state.fields[field.id] = { value: '', notes: '' };
+                });
+                localStorage.setItem('leanCanvasState', JSON.stringify(state));
+                canvasView.style.display = 'none';
+                wizardView.style.display = 'block';
+                renderField();
+            }
+        });
+
+        // Canvas title save
+        canvasTitle.addEventListener('input', () => {
+            state.canvasTitle = canvasTitle.value;
+            localStorage.setItem('leanCanvasState', JSON.stringify(state));
+        });
+
+        // Initialize
+        renderField();
+    </script>
+</body>
+</html>
