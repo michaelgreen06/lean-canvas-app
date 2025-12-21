@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Success Metrics Calculator</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: #f5f5f5;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      /* Header */
+      header {
+        text-align: center;
+        padding: 40px 20px;
+        background: white;
+        margin-bottom: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      header h1 {
+        font-size: 2rem;
+        margin-bottom: 10px;
+      }
+
+      header p {
+        color: #666;
+      }
+
+      /* Wizard Mode Styles */
+      #wizardView {
+        display: block;
+      }
+
+      #resultsView {
+        display: none;
+      }
+
+      .wizard-card {
+        background: white;
+        border-radius: 8px;
+        padding: 40px;
+        max-width: 700px;
+        margin: 0 auto;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .progress-bar {
+        margin-bottom: 30px;
+      }
+
+      .progress-text {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 8px;
+      }
+
+      .progress-track {
+        width: 100%;
+        height: 6px;
+        background: #e0e0e0;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: #2196f3;
+        transition: width 0.3s ease;
+      }
+
+      .field-title {
+        font-size: 1.5rem;
+        margin-bottom: 15px;
+        font-weight: 600;
+      }
+
+      .brief-instruction {
+        font-size: 1rem;
+        color: #555;
+        margin-bottom: 20px;
+      }
+
+      .detailed-instruction {
+        margin-bottom: 20px;
+      }
+
+      .detail-toggle {
+        background: #f0f0f0;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .detail-toggle:hover {
+        background: #e0e0e0;
+      }
+
+      .detail-content {
+        display: none;
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 4px;
+        font-size: 0.95rem;
+        color: #555;
+        line-height: 1.6;
+        margin-top: 10px;
+      }
+
+      .detail-content.active {
+        display: block;
+      }
+
+      .input-area {
+        margin-bottom: 25px;
+      }
+
+      input[type="number"] {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        font-size: 1.2rem;
+        font-family: inherit;
+        transition: border-color 0.2s;
+      }
+
+      input[type="number"]:focus {
+        outline: none;
+        border-color: #2196f3;
+      }
+
+      .navigation {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-primary {
+        background: #2196f3;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #1976d2;
+      }
+
+      .btn-secondary {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      .btn-secondary:hover {
+        background: #e0e0e0;
+      }
+
+      .btn-secondary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Results View Styles */
+      .results-controls {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .results-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .action-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .results-container {
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .results-section {
+        margin-bottom: 30px;
+      }
+
+      .results-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #2196f3;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e0e0e0;
+      }
+
+      .metric-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #f0f0f0;
+      }
+
+      .metric-row:last-child {
+        border-bottom: none;
+      }
+
+      .metric-label {
+        font-size: 1rem;
+        color: #555;
+      }
+
+      .metric-value {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #333;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .wizard-card {
+          padding: 20px;
+        }
+
+        .results-container {
+          padding: 20px;
+        }
+
+        .metric-row {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 5px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Success Metrics Calculator</h1>
+        <p>Enter 5 key metrics to calculate your business success indicators</p>
+      </header>
+
+      <!-- Wizard View -->
+      <div id="wizardView">
+        <div class="wizard-card">
+          <div class="progress-bar">
+            <div class="progress-text">
+              <span id="progressText">Question 1 of 5</span>
+            </div>
+            <div class="progress-track">
+              <div
+                class="progress-fill"
+                id="progressFill"
+                style="width: 20%"
+              ></div>
+            </div>
+          </div>
+
+          <h2 class="field-title" id="fieldTitle"></h2>
+          <p class="brief-instruction" id="briefInstruction"></p>
+
+          <div class="detailed-instruction">
+            <button class="detail-toggle" id="detailToggle">
+              <span id="toggleIcon">▶</span>
+              <span>Show detailed instructions</span>
+            </button>
+            <div class="detail-content" id="detailContent"></div>
+          </div>
+
+          <div class="input-area">
+            <input
+              type="number"
+              id="fieldInput"
+              placeholder="Enter value..."
+              step="any"
+              autofocus
+            />
+          </div>
+
+          <div class="navigation">
+            <button class="btn-secondary" id="backBtn" disabled>← Back</button>
+            <button class="btn-primary" id="nextBtn">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results View -->
+      <div id="resultsView">
+        <div class="results-controls">
+          <h2 class="results-title">Your Success Metrics</h2>
+          <div class="action-buttons">
+            <button class="btn-secondary" id="editBtn">✏️ Edit Inputs</button>
+            <button class="btn-secondary" id="resetBtn">🔄 New Calculation</button>
+          </div>
+        </div>
+
+        <div class="results-container">
+          <!-- Input Values Section -->
+          <div class="results-section">
+            <h3 class="section-title">Input Metrics</h3>
+            <div id="inputMetrics"></div>
+          </div>
+
+          <!-- Calculated Values Section -->
+          <div class="results-section">
+            <h3 class="section-title">Calculated Success Indicators</h3>
+            <div id="calculatedMetrics"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Field Definitions
+      const FIELDS = [
+        {
+          id: "minimumSuccessCriteria",
+          title: "Minimum Success Criteria",
+          brief: "Placeholder for brief instruction",
+          detailed: "Placeholder for detailed instruction",
+          placeholder: "Enter minimum success criteria",
+        },
+        {
+          id: "revenuePerCustomerPerMonth",
+          title: "Revenue per Customer per Month",
+          brief: "Placeholder for brief instruction",
+          detailed: "Placeholder for detailed instruction",
+          placeholder: "Enter revenue per customer per month",
+        },
+        {
+          id: "lifetimeValueYears",
+          title: "Lifetime Value in Years",
+          brief: "Placeholder for brief instruction",
+          detailed: "Placeholder for detailed instruction",
+          placeholder: "Enter lifetime value in years",
+        },
+        {
+          id: "conversionRate",
+          title: "Conversion Rate",
+          brief: "Placeholder for brief instruction",
+          detailed: "Placeholder for detailed instruction",
+          placeholder: "Enter conversion rate",
+        },
+        {
+          id: "referralRate",
+          title: "Referral Rate",
+          brief: "Placeholder for brief instruction",
+          detailed: "Placeholder for detailed instruction",
+          placeholder: "Enter referral rate",
+        },
+      ];
+
+      // State Management
+      let state = {
+        currentField: 0,
+        inputs: {},
+        calculated: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Initialize inputs
+      FIELDS.forEach((field) => {
+        state.inputs[field.id] = "";
+      });
+
+      // Load from localStorage if exists
+      const savedState = localStorage.getItem("metricsCalculatorState");
+      if (savedState) {
+        state = { ...state, ...JSON.parse(savedState) };
+      }
+
+      // DOM Elements
+      const wizardView = document.getElementById("wizardView");
+      const resultsView = document.getElementById("resultsView");
+      const fieldTitle = document.getElementById("fieldTitle");
+      const briefInstruction = document.getElementById("briefInstruction");
+      const detailContent = document.getElementById("detailContent");
+      const fieldInput = document.getElementById("fieldInput");
+      const backBtn = document.getElementById("backBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const progressText = document.getElementById("progressText");
+      const progressFill = document.getElementById("progressFill");
+      const detailToggle = document.getElementById("detailToggle");
+      const toggleIcon = document.getElementById("toggleIcon");
+
+      // Detail Toggle
+      detailToggle.addEventListener("click", () => {
+        detailContent.classList.toggle("active");
+        if (detailContent.classList.contains("active")) {
+          toggleIcon.textContent = "▼";
+          detailToggle.querySelector("span:last-child").textContent =
+            "Hide detailed instructions";
+        } else {
+          toggleIcon.textContent = "▶";
+          detailToggle.querySelector("span:last-child").textContent =
+            "Show detailed instructions";
+        }
+      });
+
+      // Render Current Field
+      function renderField() {
+        const field = FIELDS[state.currentField];
+        fieldTitle.textContent = field.title;
+        briefInstruction.textContent = field.brief;
+        detailContent.textContent = field.detailed;
+        fieldInput.value = state.inputs[field.id];
+        fieldInput.placeholder = field.placeholder;
+
+        // Update progress
+        const progress = ((state.currentField + 1) / FIELDS.length) * 100;
+        progressFill.style.width = `${progress}%`;
+        progressText.textContent = `Question ${state.currentField + 1} of ${
+          FIELDS.length
+        }`;
+
+        // Update buttons
+        backBtn.disabled = state.currentField === 0;
+        nextBtn.textContent =
+          state.currentField === FIELDS.length - 1
+            ? "Calculate Results →"
+            : "Next →";
+
+        // Reset detail toggle
+        detailContent.classList.remove("active");
+        toggleIcon.textContent = "▶";
+        detailToggle.querySelector("span:last-child").textContent =
+          "Show detailed instructions";
+
+        // Focus input
+        fieldInput.focus();
+      }
+
+      // Save Current Field
+      function saveCurrentField() {
+        const field = FIELDS[state.currentField];
+        state.inputs[field.id] = fieldInput.value;
+        state.updatedAt = new Date().toISOString();
+        localStorage.setItem("metricsCalculatorState", JSON.stringify(state));
+      }
+
+      // Navigation
+      backBtn.addEventListener("click", () => {
+        saveCurrentField();
+        state.currentField--;
+        renderField();
+      });
+
+      nextBtn.addEventListener("click", () => {
+        saveCurrentField();
+        if (state.currentField < FIELDS.length - 1) {
+          state.currentField++;
+          renderField();
+        } else {
+          calculateResults();
+          showResults();
+        }
+      });
+
+      // Auto-save on input
+      fieldInput.addEventListener("input", () => {
+        saveCurrentField();
+      });
+
+      // Keyboard navigation
+      fieldInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && e.metaKey) {
+          nextBtn.click();
+        }
+      });
+
+      // Calculate Results
+      function calculateResults() {
+        // Parse inputs
+        const msc = parseFloat(state.inputs.minimumSuccessCriteria) || 0;
+        const revenuePerMonth = parseFloat(state.inputs.revenuePerCustomerPerMonth) || 0;
+        const lifetimeYears = parseFloat(state.inputs.lifetimeValueYears) || 0;
+        const conversionRate = parseFloat(state.inputs.conversionRate) || 0;
+        const referralRate = parseFloat(state.inputs.referralRate) || 0;
+
+        // TODO: Add calculation formulas here
+        // Placeholder calculations - will be replaced with actual formulas
+        state.calculated = {
+          yearThreeTotalCustomers: 0,
+          churnRateCustomersPerMonth: 0,
+          monthlyBreakEvenTotalVisitors: 0,
+          monthlyBreakEvenAcquisitionRate: 0,
+          monthlyBreakEvenActivationRate: 0,
+          monthlyBreakEvenVisitorsFromReferrals: 0,
+          monthlyBreakEvenVisitorsWithoutReferrals: 0,
+        };
+
+        localStorage.setItem("metricsCalculatorState", JSON.stringify(state));
+      }
+
+      // Show Results View
+      function showResults() {
+        wizardView.style.display = "none";
+        resultsView.style.display = "block";
+        renderResults();
+      }
+
+      // Render Results
+      function renderResults() {
+        // Render input metrics
+        const inputMetricsDiv = document.getElementById("inputMetrics");
+        inputMetricsDiv.innerHTML = "";
+
+        FIELDS.forEach((field) => {
+          const row = document.createElement("div");
+          row.className = "metric-row";
+          row.innerHTML = `
+            <span class="metric-label">${field.title}</span>
+            <span class="metric-value">${state.inputs[field.id] || "Not entered"}</span>
+          `;
+          inputMetricsDiv.appendChild(row);
+        });
+
+        // Render calculated metrics
+        const calculatedMetricsDiv = document.getElementById("calculatedMetrics");
+        calculatedMetricsDiv.innerHTML = "";
+
+        const calculatedFields = [
+          { label: "Year Three Total Customers", key: "yearThreeTotalCustomers" },
+          { label: "Churn Rate (Customers per Month)", key: "churnRateCustomersPerMonth" },
+          { label: "Monthly Break Even Total Visitors", key: "monthlyBreakEvenTotalVisitors" },
+          { label: "Monthly Break Even Acquisition Rate", key: "monthlyBreakEvenAcquisitionRate" },
+          { label: "Monthly Break Even Activation Rate", key: "monthlyBreakEvenActivationRate" },
+          { label: "Monthly Break Even Visitors from Referrals", key: "monthlyBreakEvenVisitorsFromReferrals" },
+          { label: "Monthly Break Even Visitors w/o Referrals", key: "monthlyBreakEvenVisitorsWithoutReferrals" },
+        ];
+
+        calculatedFields.forEach((field) => {
+          const row = document.createElement("div");
+          row.className = "metric-row";
+          const value = state.calculated[field.key];
+          row.innerHTML = `
+            <span class="metric-label">${field.label}</span>
+            <span class="metric-value">${typeof value === 'number' ? value.toLocaleString() : value}</span>
+          `;
+          calculatedMetricsDiv.appendChild(row);
+        });
+      }
+
+      // Edit Button
+      document.getElementById("editBtn").addEventListener("click", () => {
+        resultsView.style.display = "none";
+        wizardView.style.display = "block";
+        renderField();
+      });
+
+      // Reset Button
+      document.getElementById("resetBtn").addEventListener("click", () => {
+        if (
+          confirm(
+            "Start a new calculation? Current data will be lost."
+          )
+        ) {
+          state = {
+            currentField: 0,
+            inputs: {},
+            calculated: {},
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          FIELDS.forEach((field) => {
+            state.inputs[field.id] = "";
+          });
+          localStorage.setItem("metricsCalculatorState", JSON.stringify(state));
+          resultsView.style.display = "none";
+          wizardView.style.display = "block";
+          renderField();
+        }
+      });
+
+      // Initialize
+      renderField();
+    </script>
+  </body>
+</html>
