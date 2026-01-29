@@ -215,3 +215,127 @@ cd /Users/michaelgreen/dev_stuff/productivity/continuous-innovation-framework/ci
 > "A mafia offer is an offer your customers cannot refuse."
 
 > "Understanding your customer's problems grants you superpowers."
+
+> "Speed of learning is the new unfair advantage."
+
+> "Halving your sales cycle has the same effect as doubling your close rate."
+
+> "New customers come from the actions of past customers." (sustainable growth)
+
+## Additional Frameworks (from Complete Book Reading)
+
+### The 5 P's of MVP
+When designing your MVP, ensure all five are covered:
+1. **Problem** - Smallest subset of problems that can cause a switch AND make business model work
+2. **Promise** - UVP that is different, attention-grabbing, and measurable
+3. **Price** - Fair price anchored against existing alternatives
+4. **People** - Ideal early adopters with above-average motivation to switch
+5. **Packaging** - How you deliver value (Concierge, Wizard-of-Oz, Foot-in-the-Door, or Release 1.0)
+
+### MVP Validation Recipes
+1. **Concierge MVP** - You are the product (services model) until ready to automate
+2. **Wizard-of-Oz MVP** - Fake it till you make it (cobble together existing solutions)
+3. **Foot-in-the-Door MVP** - Deliver smallest UVP to get inside customer's world
+4. **Release 1.0 MVP** - Traditional scoped-down feature set
+
+### The Happy Customer Loop (Post-Launch)
+After acquisition, focus on:
+1. **Activation** - Get customers to first "aha moment" in under 30 minutes
+2. **Retention** - Create habit loops through triggers, actions, rewards
+3. **Switch Prevention** - Make product the new status quo
+
+**Behavior Design (Fogg Model):**
+- Behavior = Motivation + Ability + Prompt (at same moment)
+- Habits form through repetition and rewards
+
+**80/20 Rule Post-Launch:**
+- 80% time on measuring/improving existing features
+- 20% time on new features
+
+### Customer Progress Roadmap
+Break the big desired outcome into smaller summits:
+- First aha moment in under 30 minutes
+- Use doubling rule (each summit ~2x effort of previous)
+- Prefer intrinsic rewards over extrinsic (badges)
+- Prefer doing over learning
+- Hide features not needed for current summit
+
+### Mafia Offer Pitch Structure (Hero's Journey)
+**Characters:**
+- Hero = Your early adopter (not you!)
+- Villain = True competition (existing alternatives)
+- Guide = You (Obi-Wan, Dumbledore, Fairy Godmother)
+- Gift = Your product
+
+**4-Act Structure:**
+1. **Setup** - Share bigger context, raise stakes, tease promise
+2. **Confrontation** - Name true competition, list problems, break the old way
+3. **Resolution** - Demo your better new way (emotional purchase happens here)
+4. **Call-to-action** - Ask for the switch, price anchoring, specific next steps
+
+### Growth Rockets (Post Product/Market Fit)
+
+**Three Types of Growth Loops:**
+
+1. **Revenue Growth Loop**
+   - Reinvest revenue into paid acquisition (ads, sales team)
+   - Sustainability test: LTV > 3x CAC, payback < 12 months
+
+2. **Retention Growth Loop**
+   - Use content/data from existing users to attract new users
+   - Examples: YouTube (user content), Yelp (reviews), Waze (data)
+
+3. **Referral Growth Loop**
+   - Existing users bring new users
+   - Viral coefficient (K) > 1 = true virality
+   - Optimize viral cycle time
+
+**Rocket Ship Model:**
+- Booster rockets = nonscalable channels (warm referrals, direct sales, events)
+- Growth rocket = scalable channel with sustainable flywheel
+
+### The BOOTSTART Manifesto (16 Principles)
+1. Entrepreneurs are everywhere
+2. The garage entrepreneur persona has changed
+3. There is no better time to start
+4. Most products still fail
+5. A dozen reasons why products fail
+6. Number one reason: building something nobody wants
+7. Number two reason: never starting
+8. You don't need permission to start
+9. Love the problem, not your solution
+10. Don't write a business plan (use Lean Canvas)
+11. Your business model is the product
+12. Focus on time, not timing
+13. Not acceleration, but deceleration (focus on right things)
+14. Not faux validation, but traction
+15. Remove failure from vocabulary (course-correct instead)
+16. It's time to act on your big idea
+
+### Elevator Pitch Template
+```
+When [customers] encounter a [triggering event],
+they need to do [job-to-be-done] to achieve [desired outcome].
+
+They would normally use [existing alternatives],
+but because of [switching trigger] these have [problems].
+If left unaddressed, then [what's at stake].
+
+So we built a solution that helps [customers]
+achieve [desired outcome] by/with [unique value proposition].
+```
+
+### Stockdale Paradox (Important Mindset)
+> "You must maintain unwavering faith that you can and will prevail in the end, regardless of the difficulties, and at the same time, have the discipline to confront the most brutal facts of your current reality, whatever they might be."
+
+**Application:** Be brutal with your business model assumptions, but have faith in yourself and team.
+
+## Recommended Reading (from book)
+- The Lean Startup - Eric Ries
+- Crossing the Chasm - Geoffrey Moore
+- Competing Against Luck - Clayton Christensen
+- The Power of Habit - Charles Duhigg
+- Tiny Habits - BJ Fogg
+- Never Split the Difference - Chris Voss
+- Building a StoryBrand - Donald Miller
+- Business Model Generation - Alex Osterwalder

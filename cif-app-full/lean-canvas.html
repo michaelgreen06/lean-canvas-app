@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lean Canvas - CIF</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="shared/styles.css">
+</head>
+<body class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="btn btn-secondary btn-sm" title="Back to Dashboard">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Dashboard
+                </a>
+                <div id="title-container">
+                    <!-- Editable title inserted here -->
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="mode-toggle" class="btn btn-secondary" onclick="toggleMode()">
+                    <!-- Toggle text inserted by JS -->
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        <!-- Wizard Mode -->
+        <div id="wizard-mode" class="hidden">
+            <!-- Progress -->
+            <div id="progress-container" class="mb-4"></div>
+
+            <!-- Step Navigation -->
+            <div id="step-nav-container" class="mb-6"></div>
+
+            <!-- Step Content -->
+            <div id="step-content" class="wizard-step">
+                <!-- Populated by JavaScript -->
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="wizard-navigation">
+                <button id="prev-btn" class="btn btn-secondary" onclick="prevStep()">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Previous
+                </button>
+                <div class="flex gap-2">
+                    <button class="btn btn-secondary" onclick="skipStep()">Skip</button>
+                    <button id="next-btn" class="btn btn-primary" onclick="nextStep()">
+                        Next
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas View Mode -->
+        <div id="canvas-mode" class="hidden">
+            <!-- Action Bar -->
+            <div class="flex justify-end gap-2 mb-4 no-print">
+                <button class="btn btn-secondary" onclick="exportPDF()">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 2v8M5 7l3 3 3-3M3 12v2h10v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Export PDF
+                </button>
+                <button class="btn btn-secondary" onclick="exportMarkdown()">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 2v8M5 7l3 3 3-3M3 12v2h10v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Export Markdown
+                </button>
+                <button class="btn btn-secondary" onclick="copyToClipboard()">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="5" y="5" width="8" height="9" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M3 10V3a1 1 0 011-1h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Copy to Clipboard
+                </button>
+            </div>
+
+            <!-- Canvas Grid -->
+            <div id="canvas-grid" class="canvas-grid">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="shared/storage.js"></script>
+    <script src="shared/components.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        // Wizard step definitions with all content from the book
+        const WIZARD_STEPS = [
+            {
+                id: 'customerSegments',
+                title: 'Customer Segments',
+                brief: 'List your target customers and users',
+                detailed: `<p>A <strong>customer</strong> is someone who pays for your product. A <strong>user</strong> does not.</p>
+                    <p>If you have multiple actors in your business model, identify your customers first, then identify any other actors (users, influencers, etc.) that will interact with these customers.</p>
+                    <p>Your list should represent your <strong>total addressable market (TAM)</strong>.</p>`,
+                examples: [
+                    { company: 'Starbucks', text: 'Coffee drinkers' },
+                    { company: 'Facebook', text: 'College students #user | Advertisers #customer' },
+                    { company: 'Airbnb', text: 'Travelers #buyer | Property owners #seller' }
+                ],
+                placeholder: 'e.g., Small business owners who need accounting software\n\nTip: Use #user, #customer, #buyer, #seller tags for multisided models'
+            },
+            {
+                id: 'earlyAdopters',
+                title: 'Early Adopters',
+                brief: 'List characteristics of your ideal starting customer',
+                detailed: `<p>Your objective is to define an <strong>early adopter</strong>, not a mainstream customer.</p>
+                    <p>Early adopters represent a specific subset of your TAM - this is your <strong>ideal customer profile (ICP)</strong>.</p>
+                    <p>Your sole job should be to find and target early adopters, which requires <strong>bold, clear, and specific messaging</strong>.</p>`,
+                examples: [
+                    { company: 'Starbucks', text: 'People who brew coffee at home' },
+                    { company: 'Facebook', text: 'Ivy League students, starting with Harvard #user | Advertisers targeting college students #customer' },
+                    { company: 'Airbnb', text: 'Travelers attending events/conventions #buyer | People with extra rooms willing to rent #seller' }
+                ],
+                placeholder: 'e.g., Solo entrepreneurs with 0-5 employees, doing their own bookkeeping, spending 5+ hours/week on financial admin'
+            },
+            {
+                id: 'problem',
+                title: 'Problem',
+                brief: 'List your customers\' top 1-3 problems',
+                detailed: `<p>Prioritize the <strong>top one to three issues</strong> that you believe are most pressing for your customers.</p>
+                    <p>Problems, not solutions, create spaces for innovation.</p>
+                    <p>Remember: <em>"Understanding your customer's problems grants you superpowers."</em></p>`,
+                examples: [
+                    { company: 'Starbucks', text: 'Limited choices for freshly brewed high-quality coffee' },
+                    { company: 'Facebook', text: 'Existing social networks fail to deliver on core promises - friends as badges vs true friends, low-quality conversations #user | Advertisers want highly targeted, active audience #customer' },
+                    { company: 'Airbnb', text: 'Finding a room when hotels are sold out #buyer | Earning extra cash from unused space #seller' }
+                ],
+                placeholder: 'e.g., 1. Spending too much time on manual bookkeeping\n2. Fear of making tax mistakes\n3. Can\'t afford a professional accountant'
+            },
+            {
+                id: 'existingAlternatives',
+                title: 'Existing Alternatives',
+                brief: 'List how these problems are solved today',
+                detailed: `<p>Document how your early adopters <strong>currently address</strong> these problems.</p>
+                    <p>Unless you are solving a brand new problem (unlikely), solutions probably already exist.</p>
+                    <p>These solutions may not be from an obvious competitor - they could be <strong>email, spreadsheets, or manual processes</strong>.</p>`,
+                examples: [
+                    { company: 'Starbucks', text: 'Supermarket coffee, Dunkin\' Donuts/McDonald\'s, home-brewed coffee' },
+                    { company: 'Facebook', text: 'Friendster, MySpace #user | Banner ads, Google AdWords, Yahoo #customer' },
+                    { company: 'Airbnb', text: 'Hotel rooms, couch surfing, staying with friends #buyer | Can only rent entire apartment #seller' }
+                ],
+                placeholder: 'e.g., Excel spreadsheets, shoebox of receipts, hiring a part-time bookkeeper, QuickBooks (too complex), ignoring it until tax time'
+            },
+            {
+                id: 'uniqueValueProposition',
+                title: 'Unique Value Proposition',
+                brief: 'Single, clear, compelling message that turns an unaware visitor into an interested prospect',
+                detailed: `<p>Why is your product <strong>different AND worth paying attention to</strong>?</p>
+                    <p>Focus on desired <strong>OUTCOMES</strong>, not features or benefits.</p>
+                    <p>Connect your UVP to the #1 problem you're solving. Keep it under 120 characters.</p>
+                    <p><strong>Example progression:</strong></p>
+                    <ul style="margin-left: 1.5rem; list-style: disc;">
+                        <li>Feature: "professionally designed templates"</li>
+                        <li>Benefit: "eye-catching resume"</li>
+                        <li>Outcome: "landing your dream job"</li>
+                    </ul>`,
+                examples: [
+                    { company: 'Starbucks', text: 'A third place between work and home' },
+                    { company: 'Facebook', text: 'Connect and share with friends, not strangers #user | Reach highly segmented active users with high ROI #customer' },
+                    { company: 'Airbnb', text: 'Find unique accommodations #buyer | Earn money from your extra space #seller' }
+                ],
+                placeholder: 'e.g., "Never stress about your books again" or "Accounting that takes 5 minutes, not 5 hours"'
+            },
+            {
+                id: 'highLevelConcept',
+                title: 'High-Level Concept',
+                brief: 'Your "X for Y" analogy (e.g., YouTube = Flickr for videos)',
+                detailed: `<p>A memorable <strong>sound bite</strong> that quickly explains your concept.</p>
+                    <p>Format: <strong>"[Known thing] for [your market]"</strong></p>
+                    <p>This is NOT the same as your UVP and should NOT be on your landing page.</p>
+                    <p>Use it to quickly get your idea across and make it <strong>easy to spread</strong> after customer interviews.</p>`,
+                examples: [
+                    { company: 'Starbucks', text: 'McDonald\'s for coffee' },
+                    { company: 'Facebook', text: 'Friendster for college students' },
+                    { company: 'Airbnb', text: 'eBay for space' },
+                    { company: 'YouTube', text: 'Flickr for video' },
+                    { company: 'Aliens (movie)', text: 'Jaws in space' }
+                ],
+                placeholder: 'e.g., "Mint.com for small business" or "TurboTax meets AI"'
+            },
+            {
+                id: 'solution',
+                title: 'Solution',
+                brief: 'Outline possible solutions for each problem',
+                detailed: `<p>Simply sketch out the <strong>SIMPLEST thing</strong> you could possibly build to address each problem.</p>
+                    <p>Don't get carried away - problems often get reprioritized after customer conversations.</p>
+                    <p><strong>Bind a solution to your problem as late as possible.</strong></p>`,
+                examples: [
+                    { company: 'Starbucks', text: 'Bring Italian coffeehouse tradition to the US' },
+                    { company: 'Facebook', text: 'Remove friction from pre-existing college campus social networks' },
+                    { company: 'Airbnb', text: 'Marketplace connecting guests with hosts' }
+                ],
+                placeholder: 'e.g., 1. Auto-import bank transactions → no manual entry\n2. AI categorizes expenses → reduces errors\n3. One-click tax reports → no accountant needed'
+            },
+            {
+                id: 'channels',
+                title: 'Channels',
+                brief: 'List your paths to customers',
+                detailed: `<p>Failing to build a clear path to customers is among the <strong>top reasons startups fail</strong>.</p>
+                    <p>The initial goal is to LEARN, not scale - so at first, it's OK to use any channel that gets you in front of customers.</p>
+                    <p>But also think about <strong>scalable channels</strong> from day one so you can start testing them early.</p>`,
+                examples: [
+                    { company: 'Starbucks', text: 'Retail stores, supermarkets, advertising' },
+                    { company: 'Facebook', text: 'Viral usage, seed Ivy League schools #user | Auction platform, direct sales #customer' },
+                    { company: 'Airbnb', text: 'Online ads, word of mouth, events' }
+                ],
+                placeholder: 'e.g., - Content marketing (SEO blog posts)\n- Facebook/Instagram ads\n- Partnerships with accountants\n- Referral program'
+            },
+            {
+                id: 'revenueStreams',
+                title: 'Revenue Streams',
+                brief: 'List your sources of revenue',
+                detailed: `<p><strong>Don't defer pricing</strong> - it's part of your product!</p>
+                    <p>Price defines your customer segment (bottled water at $0.50 vs $2 attracts different customers).</p>
+                    <p><strong>Getting paid is the first form of validation.</strong></p>
+                    <p>Include: pricing model (subscription, one-time, freemium), price points, revenue per customer.</p>`,
+                examples: [
+                    { company: 'Starbucks', text: 'Coffee $5/cup, beans $12/bag' },
+                    { company: 'Facebook', text: 'Advertising - $1 CPM, ARPU = $0.30/month, LTV = $14.40' },
+                    { company: 'Airbnb', text: 'Booking fee (% of transaction)' }
+                ],
+                placeholder: 'e.g., - Freemium: Free tier (basic features)\n- Pro: $29/month (unlimited transactions)\n- Enterprise: $99/month (team features)\n\nTarget LTV: $348/year'
+            },
+            {
+                id: 'costStructure',
+                title: 'Cost Structure',
+                brief: 'List your fixed and variable costs',
+                detailed: `<p>Focus on your <strong>most immediate 3-6 month milestones</strong>, not 3-5 year forecasts.</p>
+                    <p>Model the runway to define, build, and launch your MVP.</p>
+                    <p>Questions:</p>
+                    <ul style="margin-left: 1.5rem; list-style: disc;">
+                        <li>What will it cost to build/launch MVP?</li>
+                        <li>What's your ongoing burn rate (salaries, rent, hosting)?</li>
+                    </ul>`,
+                examples: [
+                    { company: 'Starbucks', text: 'People costs, retail store costs' },
+                    { company: 'Facebook', text: 'Hosting $85/month, people (unpaid initially)' },
+                    { company: 'Airbnb', text: 'Website, advertising, people costs' }
+                ],
+                placeholder: 'e.g., Fixed:\n- Hosting: $200/month\n- Team: $0 (bootstrapped)\n\nVariable:\n- Ad spend: $500/month\n- Payment processing: 2.9%\n\nMVP budget: $5,000'
+            },
+            {
+                id: 'keyMetrics',
+                title: 'Key Metrics',
+                brief: 'List 3-5 key numbers telling how your business is doing',
+                detailed: `<p>Measure <strong>OUTCOMES</strong> (how people use your product) not OUTPUTS (how much you build).</p>
+                    <p>Use <strong>LEADING indicators</strong> (qualified leads, trials, churn) not just TRAILING indicators (revenue, profit).</p>
+                    <p>Study metrics from your industry:</p>
+                    <ul style="margin-left: 1.5rem; list-style: disc;">
+                        <li>SaaS: LTV, CAC, MRR</li>
+                        <li>Ad-based: DAU, MAU, CTR</li>
+                        <li>Marketplace: buyer/seller ratio, take rate</li>
+                    </ul>`,
+                examples: [
+                    { company: 'Starbucks', text: 'Cups served, # customers, avg revenue per customer' },
+                    { company: 'Facebook', text: 'DAU/MAU, page views #user | Impressions, clicks, conversions #customer' },
+                    { company: 'Airbnb', text: 'Guest nights booked, # listings #seller, # searches #buyer' }
+                ],
+                placeholder: 'e.g., AARRR Metrics:\n- Acquisition: Trial signups/week\n- Activation: % complete onboarding\n- Retention: Monthly active users\n- Revenue: MRR, LTV, CAC\n- Referral: NPS, referral rate'
+            },
+            {
+                id: 'unfairAdvantage',
+                title: 'Unfair Advantage',
+                brief: 'Something that can\'t be easily copied or bought',
+                detailed: `<p>This is the <strong>HARDEST section</strong> - leave it blank if you don't have a real one!</p>
+                    <p><strong>Fake advantages:</strong> passion, features, first-mover (often a disadvantage!)</p>
+                    <p><strong>Real advantages:</strong></p>
+                    <ul style="margin-left: 1.5rem; list-style: disc;">
+                        <li>Insider information</li>
+                        <li>Expert endorsements</li>
+                        <li>Dream team</li>
+                        <li>Personal authority</li>
+                        <li>Network effects</li>
+                        <li>Platform effects</li>
+                        <li>Community</li>
+                        <li>Existing customers</li>
+                        <li>Organic SEO ranking</li>
+                    </ul>
+                    <p>You can start with an "unfair advantage story" - how you PLAN to build one.</p>`,
+                examples: [
+                    { company: 'Starbucks', text: 'Community, convenience, accessibility' },
+                    { company: 'Facebook', text: 'Network effects → more engagement → more ad clicks' },
+                    { company: 'Airbnb', text: '(Left blank initially - that\'s OK!)' }
+                ],
+                placeholder: 'e.g., - 10 years experience as a CPA\n- Existing email list of 5,000 small business owners\n- Partnership with major bank (in progress)\n\nOr leave blank - it\'s okay to not have one yet!'
+            }
+        ];
+
+        // State
+        let canvas = null;
+        let currentStep = 0;
+        let mode = 'wizard'; // 'wizard' or 'canvas'
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const canvasId = params.get('id');
+            const requestedMode = params.get('mode');
+
+            if (!canvasId) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            canvas = CIFStorage.getCanvas(canvasId);
+            if (!canvas) {
+                CIFComponents.ToastManager.error('Canvas not found');
+                setTimeout(() => window.location.href = 'index.html', 1500);
+                return;
+            }
+
+            currentStep = canvas.currentStep || 0;
+            mode = requestedMode || 'wizard';
+
+            renderTitle();
+            render();
+        });
+
+        // Render title
+        function renderTitle() {
+            const container = document.getElementById('title-container');
+            const titleInput = CIFComponents.createEditableTitle(canvas.title, (newTitle) => {
+                canvas = CIFStorage.updateCanvas(canvas.id, { title: newTitle });
+                document.title = `${newTitle} - Lean Canvas`;
+            });
+            container.innerHTML = '';
+            container.appendChild(titleInput);
+            document.title = `${canvas.title} - Lean Canvas`;
+        }
+
+        // Main render function
+        function render() {
+            const wizardEl = document.getElementById('wizard-mode');
+            const canvasEl = document.getElementById('canvas-mode');
+            const toggleBtn = document.getElementById('mode-toggle');
+
+            if (mode === 'wizard') {
+                wizardEl.classList.remove('hidden');
+                canvasEl.classList.add('hidden');
+                toggleBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="2" y="3" width="12" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                        <line x1="6" y1="3" x2="6" y2="13" stroke="currentColor" stroke-width="1.5"/>
+                        <line x1="10" y1="3" x2="10" y2="13" stroke="currentColor" stroke-width="1.5"/>
+                        <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                    View Canvas
+                `;
+                renderWizard();
+            } else {
+                wizardEl.classList.add('hidden');
+                canvasEl.classList.remove('hidden');
+                toggleBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M11.5 2.5l2 2-8 8H3.5v-2l8-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Edit Canvas
+                `;
+                renderCanvas();
+            }
+        }
+
+        // Toggle between wizard and canvas mode
+        function toggleMode() {
+            mode = mode === 'wizard' ? 'canvas' : 'wizard';
+            // Update URL without reloading
+            const url = new URL(window.location);
+            url.searchParams.set('mode', mode);
+            window.history.replaceState({}, '', url);
+            render();
+        }
+
+        // Render wizard
+        function renderWizard() {
+            // Calculate completed steps
+            const completedSteps = [];
+            WIZARD_STEPS.forEach((step, index) => {
+                if (canvas.fields[step.id] && canvas.fields[step.id].trim()) {
+                    completedSteps.push(index);
+                }
+            });
+
+            // Progress bar
+            document.getElementById('progress-container').innerHTML =
+                CIFComponents.createProgressBar(completedSteps.length, WIZARD_STEPS.length);
+
+            // Step navigation
+            document.getElementById('step-nav-container').innerHTML =
+                CIFComponents.createStepNav(currentStep, WIZARD_STEPS.length, completedSteps);
+
+            // Add click handlers to step nav
+            document.querySelectorAll('.step-nav-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    goToStep(parseInt(btn.dataset.step));
+                });
+            });
+
+            // Render current step
+            renderStep();
+
+            // Update navigation buttons
+            document.getElementById('prev-btn').style.visibility = currentStep === 0 ? 'hidden' : 'visible';
+
+            const nextBtn = document.getElementById('next-btn');
+            if (currentStep === WIZARD_STEPS.length - 1) {
+                nextBtn.innerHTML = 'Finish <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            } else {
+                nextBtn.innerHTML = 'Next <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            }
+        }
+
+        // Render current wizard step
+        function renderStep() {
+            const step = WIZARD_STEPS[currentStep];
+            const currentValue = canvas.fields[step.id] || '';
+
+            // Build examples HTML
+            let examplesHtml = '<div class="space-y-2">';
+            step.examples.forEach(ex => {
+                examplesHtml += CIFComponents.formatExample(ex.company, ex.text);
+            });
+            examplesHtml += '</div>';
+
+            const html = `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+
+                ${CIFComponents.createAccordion(
+                    'accordion-detailed',
+                    'Show detailed guidance',
+                    step.detailed
+                )}
+
+                ${CIFComponents.createAccordion(
+                    'accordion-examples',
+                    'Show examples from the book',
+                    examplesHtml
+                )}
+
+                <div class="mt-4">
+                    <textarea
+                        id="step-input"
+                        class="wizard-textarea"
+                        placeholder="${step.placeholder}"
+                        oninput="saveStepValue(this.value)"
+                    >${escapeHtml(currentValue)}</textarea>
+                </div>
+            `;
+
+            document.getElementById('step-content').innerHTML = html;
+
+            // Focus the textarea
+            setTimeout(() => {
+                document.getElementById('step-input').focus();
+            }, 100);
+        }
+
+        // Save current step value
+        function saveStepValue(value) {
+            const step = WIZARD_STEPS[currentStep];
+            canvas = CIFStorage.updateCanvasField(canvas.id, step.id, value);
+        }
+
+        // Navigation
+        function goToStep(stepIndex) {
+            if (stepIndex >= 0 && stepIndex < WIZARD_STEPS.length) {
+                currentStep = stepIndex;
+                CIFStorage.updateCanvas(canvas.id, { currentStep });
+                renderWizard();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                goToStep(currentStep - 1);
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < WIZARD_STEPS.length - 1) {
+                goToStep(currentStep + 1);
+            } else {
+                // Last step - switch to canvas view
+                CIFComponents.ToastManager.success('Canvas complete! Great success!');
+                mode = 'canvas';
+                render();
+            }
+        }
+
+        function skipStep() {
+            nextStep();
+        }
+
+        // Render canvas view
+        function renderCanvas() {
+            const f = canvas.fields;
+
+            const html = `
+                <div class="canvas-cell cell-problem">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-red-100 text-red-600 rounded text-xs flex items-center justify-center font-bold">3</span>
+                        Problem
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.problem) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+                <div class="canvas-cell cell-solution">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-blue-100 text-blue-600 rounded text-xs flex items-center justify-center font-bold">7</span>
+                        Solution
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.solution) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+                <div class="canvas-cell cell-uvp">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-yellow-100 text-yellow-600 rounded text-xs flex items-center justify-center font-bold">5</span>
+                        Unique Value Proposition
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.uniqueValueProposition) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+                <div class="canvas-cell cell-unfair-advantage">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-purple-100 text-purple-600 rounded text-xs flex items-center justify-center font-bold">12</span>
+                        Unfair Advantage
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.unfairAdvantage) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+                <div class="canvas-cell cell-customer-segments">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-green-100 text-green-600 rounded text-xs flex items-center justify-center font-bold">1</span>
+                        Customer Segments
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.customerSegments) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+
+                <div class="canvas-cell cell-existing-alternatives">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-red-100 text-red-600 rounded text-xs flex items-center justify-center font-bold">4</span>
+                        Existing Alternatives
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.existingAlternatives) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+                <div class="canvas-cell cell-key-metrics">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-indigo-100 text-indigo-600 rounded text-xs flex items-center justify-center font-bold">11</span>
+                        Key Metrics
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.keyMetrics) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+                <div class="canvas-cell cell-high-level-concept">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-yellow-100 text-yellow-600 rounded text-xs flex items-center justify-center font-bold">6</span>
+                        High-Level Concept
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.highLevelConcept) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+                <div class="canvas-cell cell-channels">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-teal-100 text-teal-600 rounded text-xs flex items-center justify-center font-bold">8</span>
+                        Channels
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.channels) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+                <div class="canvas-cell cell-early-adopters">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-green-100 text-green-600 rounded text-xs flex items-center justify-center font-bold">2</span>
+                        Early Adopters
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.earlyAdopters) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+
+                <div class="canvas-cell cell-cost-structure">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-gray-200 text-gray-600 rounded text-xs flex items-center justify-center font-bold">10</span>
+                        Cost Structure
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.costStructure) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+                <div class="canvas-cell cell-revenue-streams">
+                    <div class="canvas-cell-label">
+                        <span class="inline-block w-5 h-5 bg-emerald-100 text-emerald-600 rounded text-xs flex items-center justify-center font-bold">9</span>
+                        Revenue Streams
+                    </div>
+                    <div class="canvas-cell-content">${escapeHtml(f.revenueStreams) || '<span class="text-gray-400">Not defined</span>'}</div>
+                </div>
+            `;
+
+            document.getElementById('canvas-grid').innerHTML = html;
+        }
+
+        // Export functions
+        async function exportPDF() {
+            const canvasGrid = document.getElementById('canvas-grid');
+
+            // Create wrapper for PDF
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'padding: 20px; background: white;';
+            wrapper.innerHTML = `
+                <h1 style="margin-bottom: 20px; font-size: 24px; font-family: Arial, sans-serif;">${escapeHtml(canvas.title)}</h1>
+            `;
+            wrapper.appendChild(canvasGrid.cloneNode(true));
+
+            try {
+                const opt = {
+                    margin: 10,
+                    filename: `${canvas.title.replace(/[^a-z0-9]/gi, '_')}_lean_canvas.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                };
+
+                await html2pdf().set(opt).from(wrapper).save();
+                CIFComponents.ToastManager.success('PDF exported! Very nice!');
+            } catch (error) {
+                console.error('PDF export error:', error);
+                CIFComponents.ToastManager.error('Failed to export PDF');
+            }
+        }
+
+        function exportMarkdown() {
+            const markdown = CIFStorage.exportCanvasToMarkdown(canvas);
+            CIFComponents.downloadFile(
+                markdown,
+                `${canvas.title.replace(/[^a-z0-9]/gi, '_')}_lean_canvas.md`,
+                'text/markdown'
+            );
+            CIFComponents.ToastManager.success('Markdown exported! Great success!');
+        }
+
+        async function copyToClipboard() {
+            const markdown = CIFStorage.exportCanvasToMarkdown(canvas);
+            await CIFComponents.copyToClipboard(markdown);
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/\n/g, '<br>');
+        }
+    </script>
+</body>
+</html>
