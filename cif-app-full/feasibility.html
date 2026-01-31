@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feasibility Stress Test - CIF</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="shared/styles.css">
+</head>
+<body class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="btn btn-secondary btn-sm" title="Back to Dashboard">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Dashboard
+                </a>
+                <div id="title-container"></div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-500">Section 4 of 5</span>
+                <span class="score-indicator neutral" id="section-score">-</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <div id="progress-container" class="mb-4"></div>
+        <div id="step-nav-container" class="mb-6"></div>
+        <div id="step-content" class="wizard-step"></div>
+
+        <div class="wizard-navigation">
+            <button id="prev-btn" class="btn btn-secondary" onclick="prevStep()">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Previous
+            </button>
+            <div class="flex gap-2">
+                <button class="btn btn-secondary" onclick="skipStep()">Skip</button>
+                <button id="next-btn" class="btn btn-primary" onclick="nextStep()">
+                    Next
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="shared/storage.js"></script>
+    <script src="shared/components.js"></script>
+    <script>
+        // Wizard steps for Feasibility Stress Test (Chapter 4)
+        const WIZARD_STEPS = [
+            {
+                id: 'tractionRoadmap',
+                title: 'Traction Roadmap Builder',
+                brief: 'Chart your 3-year growth trajectory',
+                detailed: `
+                    <p>Use a <strong>hockey-stick curve</strong>, not linear growth.</p>
+                    <p class="mt-3"><strong>Recommended growth rate: 10x/year</strong></p>
+                    <p class="mt-3">Counter-intuitive: 10x requires <strong>FEWER early customers</strong> than 5x!</p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li><strong>Year 1:</strong> ~1% of Year 3 goal</li>
+                        <li><strong>Year 2:</strong> ~10% of Year 3 goal</li>
+                        <li><strong>Year 3:</strong> 100% (MSC)</li>
+                    </ul>
+                    <p class="mt-3">The hockey-stick is not optimism - it's how compound growth actually works!</p>
+                `,
+                type: 'roadmap'
+            },
+            {
+                id: 'nowNextLater',
+                title: 'Now-Next-Later Planner',
+                brief: 'Break journey into 3 stages',
+                detailed: `
+                    <div class="timeline mt-4">
+                        <div class="timeline-stage now">
+                            <div class="timeline-header">
+                                <span class="timeline-badge">NOW</span>
+                            </div>
+                            <div class="timeline-title">Problem/Solution Fit</div>
+                            <div class="timeline-duration">0-6 months</div>
+                            <div class="timeline-content">
+                                <strong>Goal:</strong> Evidence-based go/no-go decision<br>
+                                <strong>Deliverables:</strong> Clear understanding of needs, MVP definition, tangible commitments
+                            </div>
+                        </div>
+                        <div class="timeline-stage next">
+                            <div class="timeline-header">
+                                <span class="timeline-badge">NEXT</span>
+                            </div>
+                            <div class="timeline-title">Product/Market Fit</div>
+                            <div class="timeline-duration">6-24 months</div>
+                            <div class="timeline-content">
+                                <strong>Goal:</strong> Build and validate MVP, achieve repeatability<br>
+                                <strong>Activities:</strong> Build MVP, launch to early adopters, optimize happy customer loop
+                            </div>
+                        </div>
+                        <div class="timeline-stage later">
+                            <div class="timeline-header">
+                                <span class="timeline-badge">LATER</span>
+                            </div>
+                            <div class="timeline-title">Scale</div>
+                            <div class="timeline-duration">24-36 months</div>
+                            <div class="timeline-content">
+                                <strong>Goal:</strong> Growth acceleration<br>
+                                <strong>Focus:</strong> Growth engines, one at a time
+                            </div>
+                        </div>
+                    </div>
+                    <div class="quote-block mt-4">
+                        <p class="quote-block-text">"You don't need a working product to acquire paying customers."</p>
+                    </div>
+                `,
+                type: 'now_next_later'
+            },
+            {
+                id: 'problemSolutionFit',
+                title: 'Problem/Solution Fit Calculator',
+                brief: 'What\'s your 3-month success criteria?',
+                detailed: `
+                    <p>Extrapolate from Year 1 goal to 3 months using conversion rates.</p>
+                    <p class="mt-3"><strong>Pick ONE primary metric to track:</strong></p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li><strong>Paying customers/month</strong> (best validation)</li>
+                        <li><strong>Trials or pilots/month</strong> (at ~10% conversion)</li>
+                        <li><strong>Leads/month</strong> (at ~10% lead→trial)</li>
+                    </ul>
+                    <p class="mt-3"><strong>Example calculation:</strong></p>
+                    <p class="text-sm text-gray-600 mt-1">If Year 1 goal = 17 customers</p>
+                    <p class="text-sm text-gray-600">3-month goal options: 2 customers/mo OR 20 trials/mo OR 200 leads/mo</p>
+                `,
+                type: 'problem_solution_fit'
+            },
+            {
+                id: 'mvpType',
+                title: 'MVP Type Selector',
+                brief: 'How will you validate with minimum build?',
+                detailed: `
+                    <p><strong>Four MVP recipes to choose from:</strong></p>
+                `,
+                type: 'mvp_selector'
+            },
+            {
+                id: 'summary',
+                title: 'Feasibility Score Summary',
+                brief: 'Can you pull this off?',
+                detailed: `
+                    <div class="quote-block">
+                        <p class="quote-block-text">"In a product's earliest stages, you need to decelerate, not accelerate."</p>
+                        <p class="quote-block-author">- Ash Maurya</p>
+                    </div>
+                `,
+                type: 'summary'
+            }
+        ];
+
+        let canvas = null;
+        let currentStep = 0;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const canvasId = params.get('id');
+
+            if (!canvasId) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            canvas = CIFStorage.getCanvas(canvasId);
+            if (!canvas) {
+                CIFComponents.ToastManager.error('Canvas not found');
+                setTimeout(() => window.location.href = 'index.html', 1500);
+                return;
+            }
+
+            // Calculate customer milestones from viability data
+            calculateMilestones();
+
+            renderTitle();
+            render();
+        });
+
+        function calculateMilestones() {
+            const v = canvas.viability;
+            const f = canvas.feasibility;
+
+            if (v.activeCustomersNeeded > 0) {
+                const growthRate = f.growthRate || '10x';
+                let year1, year2, year3;
+
+                year3 = v.activeCustomersNeeded;
+
+                if (growthRate === '3x') {
+                    year2 = Math.ceil(year3 / 3);
+                    year1 = Math.ceil(year2 / 3);
+                } else if (growthRate === '5x') {
+                    year2 = Math.ceil(year3 / 5);
+                    year1 = Math.ceil(year2 / 5);
+                } else { // 10x
+                    year2 = Math.ceil(year3 / 10);
+                    year1 = Math.ceil(year2 / 10);
+                }
+
+                canvas = CIFStorage.updateCanvas(canvas.id, {
+                    feasibility: {
+                        year1Customers: year1,
+                        year2Customers: year2,
+                        year3Customers: year3
+                    }
+                });
+                canvas = CIFStorage.getCanvas(canvas.id);
+            }
+        }
+
+        function renderTitle() {
+            const container = document.getElementById('title-container');
+            const titleInput = CIFComponents.createEditableTitle(canvas.title, (newTitle) => {
+                canvas = CIFStorage.updateCanvas(canvas.id, { title: newTitle });
+                document.title = `${newTitle} - Feasibility`;
+            });
+            container.innerHTML = '';
+            container.appendChild(titleInput);
+            document.title = `${canvas.title} - Feasibility`;
+        }
+
+        function render() {
+            const completedSteps = [];
+            WIZARD_STEPS.forEach((step, index) => {
+                if (isStepComplete(step)) completedSteps.push(index);
+            });
+
+            document.getElementById('progress-container').innerHTML =
+                CIFComponents.createProgressBar(completedSteps.length, WIZARD_STEPS.length);
+            document.getElementById('step-nav-container').innerHTML =
+                CIFComponents.createStepNav(currentStep, WIZARD_STEPS.length, completedSteps);
+
+            document.querySelectorAll('.step-nav-item').forEach(btn => {
+                btn.addEventListener('click', () => goToStep(parseInt(btn.dataset.step)));
+            });
+
+            renderStep();
+
+            document.getElementById('prev-btn').style.visibility = currentStep === 0 ? 'hidden' : 'visible';
+            const nextBtn = document.getElementById('next-btn');
+            if (currentStep === WIZARD_STEPS.length - 1) {
+                nextBtn.innerHTML = 'Continue to Pitch <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            } else {
+                nextBtn.innerHTML = 'Next <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            }
+
+            updateSectionScore();
+        }
+
+        function isStepComplete(step) {
+            const f = canvas.feasibility;
+            switch (step.id) {
+                case 'tractionRoadmap': return f.growthRate && f.year3Customers > 0;
+                case 'nowNextLater': return f.nowPlanNotes || f.nextPlanNotes || f.laterPlanNotes;
+                case 'problemSolutionFit': return f.problemSolutionFitMetric && f.problemSolutionFitTarget > 0;
+                case 'mvpType': return f.mvpType !== '';
+                case 'summary': return true;
+                default: return false;
+            }
+        }
+
+        function renderStep() {
+            const step = WIZARD_STEPS[currentStep];
+            let html = '';
+
+            switch (step.type) {
+                case 'roadmap': html = renderRoadmapStep(step); break;
+                case 'now_next_later': html = renderNowNextLaterStep(step); break;
+                case 'problem_solution_fit': html = renderProblemSolutionFitStep(step); break;
+                case 'mvp_selector': html = renderMvpSelectorStep(step); break;
+                case 'summary': html = renderSummaryStep(step); break;
+                default: html = `<p>Unknown step type</p>`;
+            }
+
+            document.getElementById('step-content').innerHTML = html;
+        }
+
+        function renderRoadmapStep(step) {
+            const f = canvas.feasibility;
+            const v = canvas.viability;
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mt-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Growth Rate</label>
+                    <div class="radio-cards mb-6">
+                        <label class="radio-card">
+                            <input type="radio" name="growthRate" value="3x" ${f.growthRate === '3x' ? 'checked' : ''} onchange="setGrowthRate('3x')">
+                            <div class="radio-card-content">
+                                <div class="font-bold text-lg">3x/year</div>
+                                <div class="text-xs text-gray-500">Conservative</div>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="growthRate" value="5x" ${f.growthRate === '5x' ? 'checked' : ''} onchange="setGrowthRate('5x')">
+                            <div class="radio-card-content">
+                                <div class="font-bold text-lg">5x/year</div>
+                                <div class="text-xs text-gray-500">Moderate</div>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="growthRate" value="10x" ${f.growthRate === '10x' || !f.growthRate ? 'checked' : ''} onchange="setGrowthRate('10x')">
+                            <div class="radio-card-content">
+                                <div class="font-bold text-lg">10x/year</div>
+                                <div class="text-xs text-gray-500">Recommended</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    ${v.activeCustomersNeeded > 0 ? `
+                        <!-- Hockey Stick Chart -->
+                        <div class="roadmap-chart">
+                            <svg viewBox="0 0 400 200" class="w-full h-48">
+                                <!-- Grid lines -->
+                                <line x1="50" y1="20" x2="50" y2="160" stroke="#e2e8f0" stroke-width="1"/>
+                                <line x1="50" y1="160" x2="380" y2="160" stroke="#e2e8f0" stroke-width="1"/>
+
+                                <!-- Curve -->
+                                <path d="M 50 155 Q 150 150, 200 130 T 380 30" stroke="#3b82f6" stroke-width="3" fill="none"/>
+
+                                <!-- Area under curve -->
+                                <path d="M 50 155 Q 150 150, 200 130 T 380 30 L 380 160 L 50 160 Z" fill="rgba(59, 130, 246, 0.1)"/>
+
+                                <!-- Year markers -->
+                                <circle cx="105" cy="152" r="6" fill="#3b82f6"/>
+                                <circle cx="215" cy="120" r="6" fill="#3b82f6"/>
+                                <circle cx="380" cy="30" r="6" fill="#3b82f6"/>
+
+                                <!-- Labels -->
+                                <text x="105" y="180" text-anchor="middle" font-size="12" fill="#64748b">Year 1</text>
+                                <text x="215" y="180" text-anchor="middle" font-size="12" fill="#64748b">Year 2</text>
+                                <text x="380" y="180" text-anchor="middle" font-size="12" fill="#64748b">Year 3</text>
+
+                                <text x="105" y="145" text-anchor="middle" font-size="11" font-weight="bold" fill="#1e293b">${formatNumber(f.year1Customers || 0)}</text>
+                                <text x="215" y="110" text-anchor="middle" font-size="11" font-weight="bold" fill="#1e293b">${formatNumber(f.year2Customers || 0)}</text>
+                                <text x="380" y="22" text-anchor="middle" font-size="11" font-weight="bold" fill="#1e293b">${formatNumber(f.year3Customers || 0)}</text>
+                            </svg>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-4 mt-4">
+                            <div class="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+                                <div class="text-2xl font-bold text-green-700">${formatNumber(f.year1Customers || 0)}</div>
+                                <div class="text-sm text-green-600">Year 1 Customers</div>
+                                <div class="text-xs text-green-500 mt-1">~${((f.year1Customers / f.year3Customers) * 100).toFixed(1)}% of goal</div>
+                            </div>
+                            <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                                <div class="text-2xl font-bold text-blue-700">${formatNumber(f.year2Customers || 0)}</div>
+                                <div class="text-sm text-blue-600">Year 2 Customers</div>
+                                <div class="text-xs text-blue-500 mt-1">~${((f.year2Customers / f.year3Customers) * 100).toFixed(1)}% of goal</div>
+                            </div>
+                            <div class="p-4 bg-purple-50 border border-purple-200 rounded-lg text-center">
+                                <div class="text-2xl font-bold text-purple-700">${formatNumber(f.year3Customers || 0)}</div>
+                                <div class="text-sm text-purple-600">Year 3 Customers</div>
+                                <div class="text-xs text-purple-500 mt-1">MSC Goal = $${formatNumber(v.mscGoal)}</div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg mt-4">
+                            <div class="text-sm text-blue-800">
+                                <strong>💡 Key Insight:</strong> With ${f.growthRate || '10x'} growth, you only need <strong>${formatNumber(f.year1Customers)}</strong> customers in Year 1!
+                                That's just <strong>${Math.ceil(f.year1Customers / 12)}</strong> customers/month average.
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div class="text-amber-800">
+                                <strong>Missing viability data!</strong> Complete the Viability section to see your roadmap.
+                            </div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        function renderNowNextLaterStep(step) {
+            const f = canvas.feasibility;
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed, true)}
+
+                <div class="mt-6 space-y-4">
+                    <div class="p-4 border-2 border-green-300 rounded-lg bg-green-50">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="px-3 py-1 bg-green-200 text-green-800 rounded-full text-sm font-semibold">NOW</span>
+                            <span class="text-sm text-green-700">Problem/Solution Fit (0-6 months)</span>
+                        </div>
+                        <textarea
+                            class="wizard-textarea"
+                            style="min-height: 100px; background: white;"
+                            placeholder="What will you do in the NOW phase?&#10;&#10;Examples:&#10;- Conduct 30 problem discovery interviews&#10;- Design and test mafia offer&#10;- Secure 5 advance payments or LOIs"
+                            oninput="saveFeasibility('nowPlanNotes', this.value)"
+                        >${escapeHtml(f.nowPlanNotes || '')}</textarea>
+                        <div class="text-xs text-green-600 mt-2">
+                            <strong>Key insight:</strong> "You don't need a working product to acquire paying customers."
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-2 border-blue-300 rounded-lg bg-blue-50">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="px-3 py-1 bg-blue-200 text-blue-800 rounded-full text-sm font-semibold">NEXT</span>
+                            <span class="text-sm text-blue-700">Product/Market Fit (6-24 months)</span>
+                        </div>
+                        <textarea
+                            class="wizard-textarea"
+                            style="min-height: 100px; background: white;"
+                            placeholder="What will you do in the NEXT phase?&#10;&#10;Examples:&#10;- Build MVP in 2-week sprints&#10;- Launch to first 10 early adopters&#10;- Optimize activation and retention"
+                            oninput="saveFeasibility('nextPlanNotes', this.value)"
+                        >${escapeHtml(f.nextPlanNotes || '')}</textarea>
+                        <div class="text-xs text-blue-600 mt-2">
+                            <strong>Key insight:</strong> "You don't need lots of users to hit repeatability."
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-2 border-purple-300 rounded-lg bg-purple-50">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="px-3 py-1 bg-purple-200 text-purple-800 rounded-full text-sm font-semibold">LATER</span>
+                            <span class="text-sm text-purple-700">Scale (24-36 months)</span>
+                        </div>
+                        <textarea
+                            class="wizard-textarea"
+                            style="min-height: 100px; background: white;"
+                            placeholder="What will you do in the LATER phase?&#10;&#10;Examples:&#10;- Launch paid acquisition campaigns&#10;- Build referral program&#10;- Expand to adjacent segments"
+                            oninput="saveFeasibility('laterPlanNotes', this.value)"
+                        >${escapeHtml(f.laterPlanNotes || '')}</textarea>
+                        <div class="text-xs text-purple-600 mt-2">
+                            <strong>Key insight:</strong> "Even here, focus on one engine of growth at a time."
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderProblemSolutionFitStep(step) {
+            const f = canvas.feasibility;
+            const v = canvas.viability;
+
+            // Calculate 3-month targets
+            const year1Target = f.year1Customers || 0;
+            const monthlyCustomers = Math.ceil(year1Target / 12);
+            const monthlyTrials = Math.ceil(monthlyCustomers / 0.1); // 10% conversion
+            const monthlyLeads = Math.ceil(monthlyTrials / 0.1); // 10% conversion
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mt-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Your Primary Success Metric</label>
+                    <div class="space-y-3 mb-6">
+                        <label class="flex items-center p-4 border-2 rounded-lg cursor-pointer ${f.problemSolutionFitMetric === 'paying_customers' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}">
+                            <input type="radio" name="fitMetric" value="paying_customers"
+                                ${f.problemSolutionFitMetric === 'paying_customers' ? 'checked' : ''}
+                                onchange="setFitMetric('paying_customers', ${monthlyCustomers})"
+                                class="mr-3">
+                            <div class="flex-1">
+                                <div class="font-semibold">Paying Customers/Month</div>
+                                <div class="text-sm text-gray-500">Best validation - money talks!</div>
+                            </div>
+                            <div class="text-2xl font-bold text-blue-600">${monthlyCustomers}</div>
+                        </label>
+
+                        <label class="flex items-center p-4 border-2 rounded-lg cursor-pointer ${f.problemSolutionFitMetric === 'trials' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}">
+                            <input type="radio" name="fitMetric" value="trials"
+                                ${f.problemSolutionFitMetric === 'trials' ? 'checked' : ''}
+                                onchange="setFitMetric('trials', ${monthlyTrials})"
+                                class="mr-3">
+                            <div class="flex-1">
+                                <div class="font-semibold">Trials or Pilots/Month</div>
+                                <div class="text-sm text-gray-500">Assumes ~10% trial→customer conversion</div>
+                            </div>
+                            <div class="text-2xl font-bold text-blue-600">${monthlyTrials}</div>
+                        </label>
+
+                        <label class="flex items-center p-4 border-2 rounded-lg cursor-pointer ${f.problemSolutionFitMetric === 'leads' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}">
+                            <input type="radio" name="fitMetric" value="leads"
+                                ${f.problemSolutionFitMetric === 'leads' ? 'checked' : ''}
+                                onchange="setFitMetric('leads', ${monthlyLeads})"
+                                class="mr-3">
+                            <div class="flex-1">
+                                <div class="font-semibold">Leads/Month</div>
+                                <div class="text-sm text-gray-500">Assumes ~10% lead→trial conversion</div>
+                            </div>
+                            <div class="text-2xl font-bold text-blue-600">${monthlyLeads}</div>
+                        </label>
+                    </div>
+
+                    ${f.problemSolutionFitMetric ? `
+                        <div class="calculator-result">
+                            <div class="calculator-result-value">${f.problemSolutionFitTarget || 0}</div>
+                            <div class="calculator-result-label">${formatMetricName(f.problemSolutionFitMetric)}/Month</div>
+                            <div class="calculator-result-subtext">Your 3-month Problem/Solution Fit target</div>
+                        </div>
+
+                        <div class="p-4 bg-gray-50 rounded-lg mt-4">
+                            <div class="text-sm">
+                                <strong>In your first 3 months (NOW phase):</strong>
+                                <ul class="list-disc ml-4 mt-2 space-y-1">
+                                    <li>Aim for <strong>${f.problemSolutionFitTarget * 3}</strong> total ${formatMetricName(f.problemSolutionFitMetric).toLowerCase()}</li>
+                                    <li>Track weekly progress</li>
+                                    <li>Use tangible commitments (payments, LOIs) as validation</li>
+                                </ul>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderMvpSelectorStep(step) {
+            const f = canvas.feasibility;
+
+            const mvpTypes = [
+                {
+                    id: 'concierge',
+                    icon: '🧑‍💼',
+                    title: 'Concierge MVP',
+                    subtitle: 'You ARE the product',
+                    description: 'Manually deliver the service yourself until ready to automate. Best for learning customer needs deeply.',
+                    example: 'Before building scheduling software, manually schedule appointments via email.'
+                },
+                {
+                    id: 'wizard_of_oz',
+                    icon: '🎭',
+                    title: 'Wizard-of-Oz MVP',
+                    subtitle: 'Fake it till you make it',
+                    description: 'Cobble together existing solutions behind the scenes. Customers see polished front, you handle messy back.',
+                    example: 'Tesla licensed a Lotus chassis and focused only on the battery innovation.'
+                },
+                {
+                    id: 'foot_in_door',
+                    icon: '🚪',
+                    title: 'Foot-in-the-Door MVP',
+                    subtitle: 'Start small, grow trust',
+                    description: 'Deliver the smallest slice of your UVP to get inside customer\'s world first.',
+                    example: 'Offer a free audit before selling consulting services.'
+                },
+                {
+                    id: 'release_1',
+                    icon: '📦',
+                    title: 'Release 1.0 MVP',
+                    subtitle: 'Traditional build approach',
+                    description: 'Scoped-down feature set. Only use when product build is truly unavoidable.',
+                    example: 'Build core feature only, no integrations or nice-to-haves.'
+                }
+            ];
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mvp-grid mt-6">
+                    ${mvpTypes.map(mvp => `
+                        <div class="mvp-card ${f.mvpType === mvp.id ? 'selected' : ''}" onclick="selectMvpType('${mvp.id}')">
+                            <div class="mvp-card-header">
+                                <div class="mvp-card-icon">${mvp.icon}</div>
+                                <div>
+                                    <div class="mvp-card-title">${mvp.title}</div>
+                                    <div class="text-xs text-gray-500">${mvp.subtitle}</div>
+                                </div>
+                            </div>
+                            <div class="mvp-card-description">${mvp.description}</div>
+                            <div class="text-xs text-gray-400 mt-2 italic">Example: ${mvp.example}</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                ${f.mvpType ? `
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Why this MVP approach?</label>
+                        <textarea
+                            class="wizard-textarea"
+                            placeholder="Explain your rationale for choosing ${mvpTypes.find(m => m.id === f.mvpType)?.title}...&#10;&#10;Consider:&#10;- What can you learn with this approach?&#10;- What resources do you need?&#10;- How quickly can you get to first customers?"
+                            oninput="saveFeasibility('mvpRationale', this.value)"
+                        >${escapeHtml(f.mvpRationale || '')}</textarea>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        function renderSummaryStep(step) {
+            const f = canvas.feasibility;
+            const v = canvas.viability;
+            const score = calculateFeasibilityScore();
+
+            const mvpNames = {
+                'concierge': 'Concierge MVP',
+                'wizard_of_oz': 'Wizard-of-Oz MVP',
+                'foot_in_door': 'Foot-in-the-Door MVP',
+                'release_1': 'Release 1.0 MVP'
+            };
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+
+                <div class="calculator-result mb-6" style="background: ${score.color === 'green' ? 'linear-gradient(135deg, #166534 0%, #22c55e 100%)' : score.color === 'yellow' ? 'linear-gradient(135deg, #a16207 0%, #f59e0b 100%)' : 'linear-gradient(135deg, #991b1b 0%, #ef4444 100%)'}">
+                    <div class="calculator-result-value">${score.label}</div>
+                    <div class="calculator-result-label">Feasibility Score</div>
+                    <div class="calculator-result-subtext">${score.message}</div>
+                </div>
+
+                <!-- Roadmap Summary -->
+                <div class="p-4 bg-gray-50 rounded-lg mb-4">
+                    <h3 class="font-semibold mb-3">Traction Roadmap (${f.growthRate || '10x'} growth)</h3>
+                    <div class="flex gap-4 text-center">
+                        <div class="flex-1 p-3 bg-green-100 rounded">
+                            <div class="text-lg font-bold text-green-700">${formatNumber(f.year1Customers || 0)}</div>
+                            <div class="text-xs text-green-600">Year 1</div>
+                        </div>
+                        <div class="flex-1 p-3 bg-blue-100 rounded">
+                            <div class="text-lg font-bold text-blue-700">${formatNumber(f.year2Customers || 0)}</div>
+                            <div class="text-xs text-blue-600">Year 2</div>
+                        </div>
+                        <div class="flex-1 p-3 bg-purple-100 rounded">
+                            <div class="text-lg font-bold text-purple-700">${formatNumber(f.year3Customers || 0)}</div>
+                            <div class="text-xs text-purple-600">Year 3 (MSC)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="summary-list mb-6">
+                    <div class="summary-item">
+                        <span class="summary-item-label">Growth Rate</span>
+                        <span class="summary-item-value">${f.growthRate || '10x'}/year</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">NOW Phase Plan</span>
+                        <span class="summary-item-value">${f.nowPlanNotes ? '✓ Defined' : '✗ Not defined'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">Problem/Solution Fit Target</span>
+                        <span class="summary-item-value">${f.problemSolutionFitTarget ? f.problemSolutionFitTarget + ' ' + formatMetricName(f.problemSolutionFitMetric) + '/mo' : '✗ Not set'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">MVP Approach</span>
+                        <span class="summary-item-value">${f.mvpType ? mvpNames[f.mvpType] : '✗ Not selected'}</span>
+                    </div>
+                </div>
+
+                ${step.detailed}
+
+                <div class="flex gap-3 mt-6">
+                    <button class="btn btn-secondary flex-1" onclick="exportSummary()">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M3 12v2h10v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Export Summary
+                    </button>
+                    <a href="pitch.html?id=${canvas.id}" class="btn btn-primary flex-1">
+                        Continue to Pitch
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </a>
+                </div>
+            `;
+        }
+
+        function calculateFeasibilityScore() {
+            const f = canvas.feasibility;
+            let points = 0;
+            let total = 5;
+
+            if (f.growthRate && f.year3Customers > 0) points++;
+            if (f.nowPlanNotes) points++;
+            if (f.problemSolutionFitMetric && f.problemSolutionFitTarget > 0) points++;
+            if (f.mvpType) points++;
+            if (f.mvpRationale) points++;
+
+            const percentage = (points / total) * 100;
+            let color, label, message;
+
+            if (percentage >= 80) {
+                color = 'green';
+                label = 'FEASIBLE';
+                message = 'You have a clear path forward!';
+            } else if (percentage >= 50) {
+                color = 'yellow';
+                label = 'PARTIAL';
+                message = 'Some planning still needed';
+            } else {
+                color = 'red';
+                label = 'INCOMPLETE';
+                message = 'Complete your feasibility plan';
+            }
+
+            canvas = CIFStorage.updateCanvas(canvas.id, {
+                scores: {
+                    ...canvas.scores,
+                    feasibility: { completed: points, total, score: color }
+                }
+            });
+
+            return { color, label, message, points, total };
+        }
+
+        // Helper functions
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function formatMetricName(metric) {
+            const names = {
+                'paying_customers': 'Paying Customers',
+                'trials': 'Trials/Pilots',
+                'leads': 'Leads'
+            };
+            return names[metric] || metric;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function setGrowthRate(rate) {
+            saveFeasibility('growthRate', rate);
+            calculateMilestones();
+            render();
+        }
+
+        function setFitMetric(metric, target) {
+            canvas = CIFStorage.updateCanvas(canvas.id, {
+                feasibility: {
+                    problemSolutionFitMetric: metric,
+                    problemSolutionFitTarget: target
+                }
+            });
+            canvas = CIFStorage.getCanvas(canvas.id);
+            render();
+        }
+
+        function selectMvpType(type) {
+            saveFeasibility('mvpType', type);
+            render();
+        }
+
+        function saveFeasibility(field, value) {
+            canvas = CIFStorage.updateCanvas(canvas.id, {
+                feasibility: { [field]: value }
+            });
+            canvas = CIFStorage.getCanvas(canvas.id);
+        }
+
+        function updateSectionScore() {
+            const scoreEl = document.getElementById('section-score');
+            const score = canvas.scores?.feasibility?.score;
+            if (score) {
+                scoreEl.className = `score-indicator ${score}`;
+                scoreEl.textContent = score === 'green' ? '✓' : score === 'yellow' ? '!' : '✗';
+            }
+        }
+
+        function goToStep(stepIndex) {
+            if (stepIndex >= 0 && stepIndex < WIZARD_STEPS.length) {
+                currentStep = stepIndex;
+                render();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) goToStep(currentStep - 1);
+        }
+
+        function nextStep() {
+            if (currentStep < WIZARD_STEPS.length - 1) goToStep(currentStep + 1);
+            else window.location.href = `pitch.html?id=${canvas.id}`;
+        }
+
+        function skipStep() { nextStep(); }
+
+        function exportSummary() {
+            const f = canvas.feasibility;
+            const score = calculateFeasibilityScore();
+
+            const mvpNames = {
+                'concierge': 'Concierge MVP',
+                'wizard_of_oz': 'Wizard-of-Oz MVP',
+                'foot_in_door': 'Foot-in-the-Door MVP',
+                'release_1': 'Release 1.0 MVP'
+            };
+
+            const markdown = `# Feasibility Stress Test Summary
+## ${canvas.title}
+
+**Score: ${score.label}** (${score.points}/${score.total})
+${score.message}
+
+---
+
+### Traction Roadmap (${f.growthRate || '10x'}/year growth)
+
+| Year | Customers |
+|------|-----------|
+| Year 1 | ${formatNumber(f.year1Customers || 0)} |
+| Year 2 | ${formatNumber(f.year2Customers || 0)} |
+| Year 3 (MSC) | ${formatNumber(f.year3Customers || 0)} |
+
+### Now-Next-Later Plan
+
+**NOW (0-6 months):**
+${f.nowPlanNotes || 'Not defined'}
+
+**NEXT (6-24 months):**
+${f.nextPlanNotes || 'Not defined'}
+
+**LATER (24-36 months):**
+${f.laterPlanNotes || 'Not defined'}
+
+### Problem/Solution Fit Target
+**Metric:** ${formatMetricName(f.problemSolutionFitMetric) || 'Not selected'}
+**Target:** ${f.problemSolutionFitTarget || 0}/month
+
+### MVP Approach
+**Type:** ${mvpNames[f.mvpType] || 'Not selected'}
+**Rationale:** ${f.mvpRationale || 'Not provided'}
+
+---
+*Generated by Continuous Innovation Framework App*
+`;
+
+            CIFComponents.downloadFile(
+                markdown,
+                `${canvas.title.replace(/[^a-z0-9]/gi, '_')}_feasibility.md`,
+                'text/markdown'
+            );
+            CIFComponents.ToastManager.success('Summary exported! Very nice!');
+        }
+    </script>
+</body>
+</html>

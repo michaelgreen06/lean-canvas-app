@@ -7,11 +7,49 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="shared/styles.css">
     <style>
-        /* Additional dashboard-specific styles */
         .header {
             background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
             color: white;
             padding: 2rem;
+        }
+        .section-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        .canvas-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        .canvas-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: var(--primary-color);
+        }
+        .canvas-card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .canvas-card-body {
+            padding: 1rem 1.5rem;
+        }
+        .section-progress-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+            flex: 1;
+        }
+        .section-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
         }
     </style>
 </head>
@@ -28,17 +66,17 @@
     <main class="max-w-6xl mx-auto px-4 py-8">
         <!-- Action Bar -->
         <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-semibold text-gray-800">Your Lean Canvases</h2>
+            <h2 class="text-xl font-semibold text-gray-800">Your Business Ideas</h2>
             <button class="btn btn-primary" onclick="createNewCanvas()">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                     <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
-                Create New Canvas
+                New Idea
             </button>
         </div>
 
-        <!-- Canvas List Container -->
-        <div id="canvas-list" class="bg-white rounded-lg shadow-sm">
+        <!-- Canvas List -->
+        <div id="canvas-list">
             <!-- Populated by JavaScript -->
         </div>
     </main>
@@ -52,123 +90,226 @@
     <!-- Scripts -->
     <script src="shared/storage.js"></script>
     <script src="shared/components.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
-        // Initialize dashboard
+        // Section definitions
+        const SECTIONS = [
+            {
+                id: 'leanCanvas',
+                name: 'Lean Canvas',
+                icon: '📋',
+                color: 'blue',
+                href: 'lean-canvas.html',
+                description: 'Define your business model'
+            },
+            {
+                id: 'desirability',
+                name: 'Desirability',
+                icon: '❤️',
+                color: 'red',
+                href: 'desirability.html',
+                description: 'Do customers want this?'
+            },
+            {
+                id: 'viability',
+                name: 'Viability',
+                icon: '💰',
+                color: 'green',
+                href: 'viability.html',
+                description: 'Can this become a business?'
+            },
+            {
+                id: 'feasibility',
+                name: 'Feasibility',
+                icon: '🛠️',
+                color: 'purple',
+                href: 'feasibility.html',
+                description: 'Can you pull this off?'
+            },
+            {
+                id: 'pitch',
+                name: 'Pitch',
+                icon: '🎤',
+                color: 'amber',
+                href: 'pitch.html',
+                description: 'Communicate your idea'
+            }
+        ];
+
+        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             renderCanvasList();
         });
 
-        // Render the list of canvases
+        // Render canvas list
         function renderCanvasList() {
             const container = document.getElementById('canvas-list');
             const canvases = CIFStorage.getAllCanvases();
 
             if (canvases.length === 0) {
-                container.innerHTML = CIFComponents.createEmptyState(
-                    CIFComponents.Icons.canvas,
-                    'No canvases yet',
-                    'Create your first Lean Canvas to start validating your business idea.',
-                    '<button class="btn btn-primary" onclick="createNewCanvas()">Create Your First Canvas</button>'
-                );
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            ${CIFComponents.Icons.canvas}
+                        </div>
+                        <h3 style="margin: 0 0 0.5rem 0; color: var(--text-primary);">No ideas yet</h3>
+                        <p style="margin: 0 0 1.5rem 0; color: var(--text-secondary);">Create your first business idea to start validating with the Continuous Innovation Framework.</p>
+                        <button class="btn btn-primary" onclick="createNewCanvas()">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            Create Your First Idea
+                        </button>
+                    </div>
+                `;
                 return;
             }
 
             // Sort by updatedAt (most recent first)
             canvases.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
-            let html = `
-                <table class="canvas-table">
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Created</th>
-                            <th>Last Updated</th>
-                            <th>Progress</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
+            let html = '<div class="space-y-6">';
             canvases.forEach(canvas => {
-                const progress = calculateProgress(canvas);
-                html += `
-                    <tr>
-                        <td>
-                            <a href="lean-canvas.html?id=${canvas.id}" class="text-blue-600 hover:text-blue-800 font-medium">
-                                ${escapeHtml(canvas.title)}
-                            </a>
-                        </td>
-                        <td class="text-gray-500">${CIFStorage.formatDate(canvas.createdAt)}</td>
-                        <td class="text-gray-500">${CIFStorage.formatDate(canvas.updatedAt)}</td>
-                        <td>
-                            <div class="flex items-center gap-2">
-                                <div class="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div class="h-full bg-blue-500 rounded-full" style="width: ${progress}%"></div>
-                                </div>
-                                <span class="text-sm text-gray-500">${progress}%</span>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="flex gap-2">
-                                <button class="btn btn-secondary btn-sm" onclick="editCanvas('${canvas.id}')" title="Edit">
-                                    ${CIFComponents.Icons.edit}
-                                </button>
-                                <button class="btn btn-secondary btn-sm" onclick="viewCanvas('${canvas.id}')" title="View">
-                                    ${CIFComponents.Icons.eye}
-                                </button>
-                                <button class="btn btn-secondary btn-sm" onclick="exportCanvasPDF('${canvas.id}')" title="Export PDF">
-                                    ${CIFComponents.Icons.download}
-                                </button>
-                                <button class="btn btn-secondary btn-sm" onclick="duplicateCanvas('${canvas.id}')" title="Duplicate">
-                                    ${CIFComponents.Icons.copy}
-                                </button>
-                                <button class="btn btn-secondary btn-sm" onclick="deleteCanvas('${canvas.id}')" title="Delete">
-                                    ${CIFComponents.Icons.trash}
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
+                canvas = CIFStorage.migrateCanvas(canvas); // Ensure canvas has new structure
+                html += renderCanvasCard(canvas);
             });
+            html += '</div>';
 
-            html += '</tbody></table>';
             container.innerHTML = html;
         }
 
-        // Calculate progress percentage based on filled fields
-        function calculateProgress(canvas) {
-            const fields = canvas.fields;
-            const totalFields = Object.keys(fields).length;
-            const filledFields = Object.values(fields).filter(v => v && v.trim()).length;
-            return Math.round((filledFields / totalFields) * 100);
+        // Render individual canvas card
+        function renderCanvasCard(canvas) {
+            const overallProgress = CIFStorage.calculateOverallProgress(canvas);
+            const overallReadiness = CIFStorage.getOverallReadiness(canvas);
+
+            return `
+                <div class="canvas-card">
+                    <div class="canvas-card-header">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-800 mb-1">${escapeHtml(canvas.title)}</h3>
+                                <p class="text-sm text-gray-500">Updated ${CIFStorage.formatDateTime(canvas.updatedAt)}</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="text-center">
+                                    <div class="score-indicator ${overallReadiness} mx-auto">
+                                        ${overallReadiness === 'green' ? '✓' : overallReadiness === 'yellow' ? '!' : '○'}
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">Readiness</div>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button class="btn btn-secondary btn-sm btn-icon" onclick="duplicateCanvas('${canvas.id}')" title="Duplicate">
+                                        ${CIFComponents.Icons.copy}
+                                    </button>
+                                    <button class="btn btn-secondary btn-sm btn-icon" onclick="deleteCanvas('${canvas.id}')" title="Delete">
+                                        ${CIFComponents.Icons.trash}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Overall Progress -->
+                        <div class="flex items-center gap-3 mt-4">
+                            <div class="section-progress-bar">
+                                <div class="section-progress-fill bg-blue-500" style="width: ${overallProgress}%"></div>
+                            </div>
+                            <span class="text-sm font-medium text-gray-600">${overallProgress}%</span>
+                        </div>
+                    </div>
+
+                    <div class="canvas-card-body">
+                        <div class="grid grid-cols-5 gap-3">
+                            ${SECTIONS.map(section => {
+                                const sectionScore = canvas.scores?.[section.id];
+                                const progress = CIFStorage.calculateSectionProgress(canvas, section.id === 'leanCanvas' ? 'leanCanvas' : section.id);
+                                const scoreColor = sectionScore?.score || 'neutral';
+                                const bgColor = {
+                                    blue: 'bg-blue-50 hover:bg-blue-100',
+                                    red: 'bg-red-50 hover:bg-red-100',
+                                    green: 'bg-green-50 hover:bg-green-100',
+                                    purple: 'bg-purple-50 hover:bg-purple-100',
+                                    amber: 'bg-amber-50 hover:bg-amber-100'
+                                }[section.color];
+                                const iconBg = {
+                                    blue: 'bg-blue-100',
+                                    red: 'bg-red-100',
+                                    green: 'bg-green-100',
+                                    purple: 'bg-purple-100',
+                                    amber: 'bg-amber-100'
+                                }[section.color];
+
+                                return `
+                                    <a href="${section.href}?id=${canvas.id}"
+                                       class="block p-3 rounded-lg ${bgColor} transition-colors text-center group">
+                                        <div class="section-icon ${iconBg} mx-auto mb-2">${section.icon}</div>
+                                        <div class="text-xs font-medium text-gray-700 mb-1">${section.name}</div>
+                                        <div class="flex items-center justify-center gap-1">
+                                            <div class="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                <div class="h-full rounded-full ${scoreColor === 'green' ? 'bg-green-500' : scoreColor === 'yellow' ? 'bg-amber-500' : scoreColor === 'red' ? 'bg-red-500' : 'bg-gray-400'}"
+                                                     style="width: ${progress}%"></div>
+                                            </div>
+                                            <span class="text-xs text-gray-500">${progress}%</span>
+                                        </div>
+                                    </a>
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="flex gap-2 mt-4 pt-4 border-t">
+                            <a href="${getContinueUrl(canvas)}" class="btn btn-primary btn-sm flex-1">
+                                Continue Where You Left Off
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                    <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </a>
+                            <button class="btn btn-secondary btn-sm" onclick="exportCanvas('${canvas.id}')" title="Export Report">
+                                ${CIFComponents.Icons.download}
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Get URL to continue working
+        function getContinueUrl(canvas) {
+            // Find the first incomplete section
+            const sectionOrder = ['leanCanvas', 'desirability', 'viability', 'feasibility', 'pitch'];
+            const urls = {
+                leanCanvas: 'lean-canvas.html',
+                desirability: 'desirability.html',
+                viability: 'viability.html',
+                feasibility: 'feasibility.html',
+                pitch: 'pitch.html'
+            };
+
+            for (const sectionId of sectionOrder) {
+                const progress = CIFStorage.calculateSectionProgress(canvas, sectionId);
+                if (progress < 100) {
+                    return `${urls[sectionId]}?id=${canvas.id}`;
+                }
+            }
+
+            // All complete, go to pitch
+            return `pitch.html?id=${canvas.id}`;
         }
 
         // Create new canvas
         function createNewCanvas() {
-            const canvas = CIFStorage.createCanvas('Untitled Canvas');
+            const canvas = CIFStorage.createCanvas('Untitled Idea');
             window.location.href = `lean-canvas.html?id=${canvas.id}`;
-        }
-
-        // Edit canvas (wizard mode)
-        function editCanvas(id) {
-            window.location.href = `lean-canvas.html?id=${id}&mode=wizard`;
-        }
-
-        // View canvas (canvas view mode)
-        function viewCanvas(id) {
-            window.location.href = `lean-canvas.html?id=${id}&mode=view`;
         }
 
         // Duplicate canvas
         function duplicateCanvas(id) {
             const newCanvas = CIFStorage.duplicateCanvas(id);
             if (newCanvas) {
-                CIFComponents.ToastManager.success('Canvas duplicated!');
+                CIFComponents.ToastManager.success('Idea duplicated! Very nice!');
                 renderCanvasList();
             } else {
-                CIFComponents.ToastManager.error('Failed to duplicate canvas');
+                CIFComponents.ToastManager.error('Failed to duplicate');
             }
         }
 
@@ -176,116 +317,102 @@
         function deleteCanvas(id) {
             const canvas = CIFStorage.getCanvas(id);
             CIFComponents.ConfirmDialog.show({
-                title: 'Delete Canvas',
-                message: `Are you sure you want to delete "${canvas ? canvas.title : 'this canvas'}"? This action cannot be undone.`,
+                title: 'Delete Idea',
+                message: `Are you sure you want to delete "${canvas ? canvas.title : 'this idea'}"? This cannot be undone.`,
                 confirmText: 'Delete',
                 confirmClass: 'btn-danger',
                 onConfirm: () => {
                     if (CIFStorage.deleteCanvas(id)) {
-                        CIFComponents.ToastManager.success('Canvas deleted');
+                        CIFComponents.ToastManager.success('Idea deleted');
                         renderCanvasList();
                     } else {
-                        CIFComponents.ToastManager.error('Failed to delete canvas');
+                        CIFComponents.ToastManager.error('Failed to delete');
                     }
                 }
             });
         }
 
-        // Export canvas to PDF
-        async function exportCanvasPDF(id) {
+        // Export canvas report
+        function exportCanvas(id) {
             const canvas = CIFStorage.getCanvas(id);
             if (!canvas) {
                 CIFComponents.ToastManager.error('Canvas not found');
                 return;
             }
 
-            // Create a temporary container for PDF generation
-            const pdfContainer = document.createElement('div');
-            pdfContainer.style.cssText = 'position: absolute; left: -9999px; width: 1100px; padding: 20px; background: white;';
-            pdfContainer.innerHTML = generateCanvasHTML(canvas);
-            document.body.appendChild(pdfContainer);
+            const lc = canvas.leanCanvas || canvas.fields;
+            const des = canvas.desirability || {};
+            const via = canvas.viability || {};
+            const fea = canvas.feasibility || {};
+            const p = canvas.pitch || {};
 
-            try {
-                const opt = {
-                    margin: 10,
-                    filename: `${canvas.title.replace(/[^a-z0-9]/gi, '_')}_lean_canvas.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2 },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-                };
-
-                await html2pdf().set(opt).from(pdfContainer).save();
-                CIFComponents.ToastManager.success('PDF exported!');
-            } catch (error) {
-                console.error('PDF export error:', error);
-                CIFComponents.ToastManager.error('Failed to export PDF');
-            } finally {
-                document.body.removeChild(pdfContainer);
+            function formatNumber(num) {
+                if (!num) return '0';
+                if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+                if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+                return num.toString();
             }
+
+            let markdown = `# ${canvas.title}\n\n`;
+            markdown += `**Created:** ${CIFStorage.formatDate(canvas.createdAt)}\n`;
+            markdown += `**Updated:** ${CIFStorage.formatDate(canvas.updatedAt)}\n\n`;
+
+            // Scores Summary
+            markdown += `## Readiness Summary\n\n`;
+            markdown += `| Section | Score |\n|---------|-------|\n`;
+            markdown += `| Desirability | ${canvas.scores?.desirability?.score || 'Not assessed'} |\n`;
+            markdown += `| Viability | ${canvas.scores?.viability?.score || 'Not assessed'} |\n`;
+            markdown += `| Feasibility | ${canvas.scores?.feasibility?.score || 'Not assessed'} |\n`;
+            markdown += `| Pitch | ${canvas.scores?.pitch?.score || 'Not assessed'} |\n\n`;
+
+            // Lean Canvas
+            markdown += `---\n\n## Lean Canvas\n\n`;
+            markdown += `### Customer Segments\n${lc.customerSegments || 'Not defined'}\n\n`;
+            markdown += `### Early Adopters\n${lc.earlyAdopters || 'Not defined'}\n\n`;
+            markdown += `### Problem\n${lc.problem || 'Not defined'}\n\n`;
+            markdown += `### Existing Alternatives\n${lc.existingAlternatives || 'Not defined'}\n\n`;
+            markdown += `### Unique Value Proposition\n${lc.uniqueValueProposition || 'Not defined'}\n\n`;
+            markdown += `### High-Level Concept\n${lc.highLevelConcept || 'Not defined'}\n\n`;
+            markdown += `### Solution\n${lc.solution || 'Not defined'}\n\n`;
+            markdown += `### Channels\n${lc.channels || 'Not defined'}\n\n`;
+            markdown += `### Revenue Streams\n${lc.revenueStreams || 'Not defined'}\n\n`;
+            markdown += `### Cost Structure\n${lc.costStructure || 'Not defined'}\n\n`;
+            markdown += `### Key Metrics\n${lc.keyMetrics || 'Not defined'}\n\n`;
+            markdown += `### Unfair Advantage\n${lc.unfairAdvantage || 'Not defined'}\n\n`;
+
+            // Viability Summary
+            if (via.mscGoal) {
+                markdown += `---\n\n## Viability Summary\n\n`;
+                markdown += `- **MSC Goal:** $${formatNumber(via.mscGoal)}/year\n`;
+                markdown += `- **Price:** $${via.monthlyPrice || 0}/month\n`;
+                markdown += `- **Customers Needed:** ${formatNumber(via.activeCustomersNeeded || 0)}\n`;
+                markdown += `- **Model Type:** ${via.modelType || 'Unknown'}\n\n`;
+            }
+
+            // Feasibility Summary
+            if (fea.year1Customers) {
+                markdown += `---\n\n## Traction Roadmap\n\n`;
+                markdown += `- **Year 1:** ${formatNumber(fea.year1Customers)} customers\n`;
+                markdown += `- **Year 2:** ${formatNumber(fea.year2Customers)} customers\n`;
+                markdown += `- **Year 3:** ${formatNumber(fea.year3Customers)} customers\n\n`;
+            }
+
+            // Pitch Summary
+            if (p.elevatorPitch) {
+                markdown += `---\n\n## Elevator Pitch\n\n${p.elevatorPitch}\n\n`;
+            }
+
+            markdown += `---\n\n*Generated by Continuous Innovation Framework App*`;
+
+            CIFComponents.downloadFile(
+                markdown,
+                `${canvas.title.replace(/[^a-z0-9]/gi, '_')}_report.md`,
+                'text/markdown'
+            );
+            CIFComponents.ToastManager.success('Report exported! Great success!');
         }
 
-        // Generate canvas HTML for PDF
-        function generateCanvasHTML(canvas) {
-            const f = canvas.fields;
-            return `
-                <div style="font-family: Arial, sans-serif;">
-                    <h1 style="margin-bottom: 20px; font-size: 24px;">${escapeHtml(canvas.title)}</h1>
-                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: #ddd; border: 1px solid #ddd;">
-                        <div style="background: white; padding: 12px; min-height: 120px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">Problem</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.problem) || '-'}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; min-height: 120px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">Solution</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.solution) || '-'}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; min-height: 120px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">Unique Value Proposition</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.uniqueValueProposition) || '-'}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; min-height: 120px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">Unfair Advantage</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.unfairAdvantage) || '-'}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; min-height: 120px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">Customer Segments</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.customerSegments) || '-'}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; min-height: 100px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">Existing Alternatives</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.existingAlternatives) || '-'}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; min-height: 100px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">Key Metrics</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.keyMetrics) || '-'}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; min-height: 100px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">High-Level Concept</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.highLevelConcept) || '-'}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; min-height: 100px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">Channels</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.channels) || '-'}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; min-height: 100px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">Early Adopters</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.earlyAdopters) || '-'}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; min-height: 80px; grid-column: span 3;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">Cost Structure</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.costStructure) || '-'}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; min-height: 80px; grid-column: span 2;">
-                            <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase;">Revenue Streams</div>
-                            <div style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(f.revenueStreams) || '-'}</div>
-                        </div>
-                    </div>
-                    <p style="margin-top: 20px; font-size: 10px; color: #999;">Generated by Continuous Innovation Framework App</p>
-                </div>
-            `;
-        }
-
-        // Escape HTML to prevent XSS
+        // Escape HTML
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');

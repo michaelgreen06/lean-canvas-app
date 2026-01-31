@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viability Stress Test - CIF</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="shared/styles.css">
+</head>
+<body class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="btn btn-secondary btn-sm" title="Back to Dashboard">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Dashboard
+                </a>
+                <div id="title-container"></div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-500">Section 3 of 5</span>
+                <span class="score-indicator neutral" id="section-score">-</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <div id="progress-container" class="mb-4"></div>
+        <div id="step-nav-container" class="mb-6"></div>
+        <div id="step-content" class="wizard-step"></div>
+
+        <div class="wizard-navigation">
+            <button id="prev-btn" class="btn btn-secondary" onclick="prevStep()">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Previous
+            </button>
+            <div class="flex gap-2">
+                <button class="btn btn-secondary" onclick="skipStep()">Skip</button>
+                <button id="next-btn" class="btn btn-primary" onclick="nextStep()">
+                    Next
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="shared/storage.js"></script>
+    <script src="shared/components.js"></script>
+    <script>
+        // Wizard step definitions for Viability Stress Test (Chapter 3)
+        const WIZARD_STEPS = [
+            {
+                id: 'mscGoal',
+                title: 'MSC Goal Setting',
+                brief: 'Define your Minimum Success Criteria',
+                detailed: `
+                    <p><strong>MSC</strong> = smallest outcome that would make you deem the project a success in 3 years</p>
+                    <p class="mt-3">Don't aim for breakeven (too short-sighted). Frame in <strong>ARR (Annual Recurring Revenue)</strong>.</p>
+                    <p class="mt-3">Think in powers of 10:</p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li><strong>$100k ARR:</strong> Enough to quit day job</li>
+                        <li><strong>$1M ARR:</strong> Small company (2-3 employees)</li>
+                        <li><strong>$10M ARR:</strong> VC-backed business</li>
+                    </ul>
+                    <p class="mt-3">Different contexts:</p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li><strong>VC-funded:</strong> Investors set expectations</li>
+                        <li><strong>Bootstrapped:</strong> How big a company do you want?</li>
+                        <li><strong>Intrapreneur:</strong> Compare to past product launches</li>
+                    </ul>
+                    <div class="quote-block mt-4">
+                        <p class="quote-block-text">"Don't go outside the building without minimum success criteria."</p>
+                    </div>
+                `,
+                type: 'msc_input'
+            },
+            {
+                id: 'pricingModel',
+                title: 'Pricing Model',
+                brief: 'Set value-based pricing for your product',
+                detailed: `
+                    <p><strong>Price defines your customer segment.</strong> Bottled water at $0.50 vs $2 attracts different customers.</p>
+                    <p class="mt-3">Don't use cost-based pricing (you're leaving money on table).</p>
+                    <p class="mt-3"><strong>Apply Innovator's Gift to pricing:</strong></p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li><strong>Floor</strong> = cost of existing alternatives</li>
+                        <li><strong>Ceiling</strong> = monetary value of your UVP</li>
+                        <li><strong>Optimal price</strong> sits between floor and ceiling</li>
+                    </ul>
+                    <div class="quote-block mt-4">
+                        <p class="quote-block-text">"Pricing is the most underutilized lever."</p>
+                    </div>
+                `,
+                type: 'pricing_input'
+            },
+            {
+                id: 'customerLifetime',
+                title: 'Customer Lifetime Estimate',
+                brief: 'How long will customers stay?',
+                detailed: `
+                    <p><strong>Customer lifetime = inverse of churn</strong></p>
+                    <p class="mt-3">Conversion table:</p>
+                    <table class="w-full mt-2 text-sm border border-gray-200">
+                        <tr class="bg-gray-50"><th class="p-2 border">Lifetime</th><th class="p-2 border">Monthly Churn</th></tr>
+                        <tr><td class="p-2 border">1 year</td><td class="p-2 border">8.33%</td></tr>
+                        <tr><td class="p-2 border">2 years</td><td class="p-2 border">4.17%</td></tr>
+                        <tr><td class="p-2 border">3 years</td><td class="p-2 border">2.78%</td></tr>
+                        <tr><td class="p-2 border">4 years</td><td class="p-2 border">2.08%</td></tr>
+                        <tr><td class="p-2 border">5 years</td><td class="p-2 border">1.67%</td></tr>
+                    </table>
+                    <p class="mt-3">If estimating >5 years, you need strong justification (high switching costs, network effects, etc.).</p>
+                `,
+                type: 'lifetime_input'
+            },
+            {
+                id: 'activeCustomers',
+                title: 'Active Customers Calculator',
+                brief: 'How many customers needed at Year 3?',
+                detailed: `
+                    <p><strong>Formula:</strong> Active Customers = MSC / (Monthly Price × 12)</p>
+                    <p class="mt-3">This tells you how many paying customers you need to hit your revenue goal.</p>
+                    <p class="mt-3">Compare to market size - early adopters should be ~16% of your TAM (Total Addressable Market).</p>
+                `,
+                type: 'customers_calc'
+            },
+            {
+                id: 'minAcquisition',
+                title: 'Minimum Customer Acquisition Rate',
+                brief: 'How many new customers per month just to MAINTAIN?',
+                detailed: `
+                    <p><strong>Formula:</strong> Min Acquisition Rate = Active Customers × Monthly Churn Rate</p>
+                    <p class="mt-3">Because of churn, you must <strong>replace customers just to stay even</strong>.</p>
+                    <p class="mt-3">This is your "treadmill speed" - the minimum you need to acquire just to maintain your customer base.</p>
+                `,
+                type: 'acquisition_calc'
+            },
+            {
+                id: 'leadsRequired',
+                title: 'Leads Required',
+                brief: 'How many leads needed to acquire those customers?',
+                detailed: `
+                    <p>No funnel converts at 100%!</p>
+                    <p class="mt-3"><strong>Typical conversion rates:</strong></p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li>B2B sales: ~0.78% (MQL→SQL→Deal)</li>
+                        <li>SaaS products: 0.6-1.2%</li>
+                        <li>eCommerce: 1-3%</li>
+                    </ul>
+                    <p class="mt-3"><strong>When in doubt, use 1%</strong></p>
+                    <p class="mt-3"><strong>Formula:</strong> Leads Required = Customers Needed / Conversion Rate</p>
+                `,
+                type: 'leads_calc'
+            },
+            {
+                id: 'referralLoop',
+                title: 'Referral Loop',
+                brief: 'How much can referrals help?',
+                detailed: `
+                    <p><strong>Viral = >100% referral rate</strong> (very rare!)</p>
+                    <p class="mt-3">Sustainable referral rates:</p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li><strong>15-25%:</strong> Good</li>
+                        <li><strong>40%:</strong> Great</li>
+                        <li><strong>70%:</strong> Excellent</li>
+                    </ul>
+                    <p class="mt-3">Referrals <strong>amplify but rarely save</strong> a broken model.</p>
+                `,
+                type: 'referral_input'
+            },
+            {
+                id: 'modelChart',
+                title: 'Business Model Viability Chart',
+                brief: 'Where does your model land?',
+                detailed: `
+                    <p>Different revenue levels require different business approaches:</p>
+                    <p class="mt-3">The extremes (Flies and Whales) are the <strong>hardest paths</strong>:</p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li><strong>Flies:</strong> Need massive scale, usually need VC funding</li>
+                        <li><strong>Whales:</strong> Need enterprise sales team, long cycles</li>
+                    </ul>
+                    <p class="mt-3">Middle ground (Mice → Deer) is often the sweet spot for bootstrappers.</p>
+                `,
+                type: 'model_chart'
+            },
+            {
+                id: 'modelFixer',
+                title: 'Model Fixer',
+                brief: 'If model broken, which lever to pull?',
+                detailed: `
+                    <p>If your model doesn't work on paper, you have options:</p>
+                    <p class="mt-3"><strong>Option A: Raise pricing</strong> (most underutilized!)</p>
+                    <ul class="list-disc ml-6 mt-2">
+                        <li>"If you double price, you need half the customers"</li>
+                    </ul>
+                    <p class="mt-3"><strong>Option B: Take on bigger/more frequent problem</strong></p>
+                    <p class="mt-3"><strong>Option C: Change customer segment</strong></p>
+                    <p class="mt-3"><strong>Option D: Revise MSC goal</strong> (last resort)</p>
+                    <p class="mt-3"><strong>Example:</strong> Steve's journey from $50/mo → $500/mo pricing transformed his model from impossible to viable.</p>
+                `,
+                type: 'model_fixer'
+            },
+            {
+                id: 'summary',
+                title: 'Viability Score Summary',
+                brief: 'Does your model work on paper?',
+                detailed: `
+                    <div class="quote-block">
+                        <p class="quote-block-text">"It's much better to invalidate your model in 5 minutes than to spend 5 months pursuing a flawed model."</p>
+                        <p class="quote-block-author">- Ash Maurya</p>
+                    </div>
+                `,
+                type: 'summary'
+            }
+        ];
+
+        let canvas = null;
+        let currentStep = 0;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const canvasId = params.get('id');
+
+            if (!canvasId) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            canvas = CIFStorage.getCanvas(canvasId);
+            if (!canvas) {
+                CIFComponents.ToastManager.error('Canvas not found');
+                setTimeout(() => window.location.href = 'index.html', 1500);
+                return;
+            }
+
+            renderTitle();
+            render();
+        });
+
+        function renderTitle() {
+            const container = document.getElementById('title-container');
+            const titleInput = CIFComponents.createEditableTitle(canvas.title, (newTitle) => {
+                canvas = CIFStorage.updateCanvas(canvas.id, { title: newTitle });
+                document.title = `${newTitle} - Viability`;
+            });
+            container.innerHTML = '';
+            container.appendChild(titleInput);
+            document.title = `${canvas.title} - Viability`;
+        }
+
+        function render() {
+            const completedSteps = [];
+            WIZARD_STEPS.forEach((step, index) => {
+                if (isStepComplete(step)) completedSteps.push(index);
+            });
+
+            document.getElementById('progress-container').innerHTML =
+                CIFComponents.createProgressBar(completedSteps.length, WIZARD_STEPS.length);
+            document.getElementById('step-nav-container').innerHTML =
+                CIFComponents.createStepNav(currentStep, WIZARD_STEPS.length, completedSteps);
+
+            document.querySelectorAll('.step-nav-item').forEach(btn => {
+                btn.addEventListener('click', () => goToStep(parseInt(btn.dataset.step)));
+            });
+
+            renderStep();
+
+            document.getElementById('prev-btn').style.visibility = currentStep === 0 ? 'hidden' : 'visible';
+            const nextBtn = document.getElementById('next-btn');
+            if (currentStep === WIZARD_STEPS.length - 1) {
+                nextBtn.innerHTML = 'Continue to Feasibility <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            } else {
+                nextBtn.innerHTML = 'Next <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            }
+
+            updateSectionScore();
+        }
+
+        function isStepComplete(step) {
+            const v = canvas.viability;
+            switch (step.id) {
+                case 'mscGoal': return v.mscGoal > 0;
+                case 'pricingModel': return v.monthlyPrice > 0 && v.pricingModel;
+                case 'customerLifetime': return v.customerLifetimeYears > 0;
+                case 'activeCustomers': return v.activeCustomersNeeded > 0;
+                case 'minAcquisition': return v.minAcquisitionRate > 0;
+                case 'leadsRequired': return v.leadsRequired > 0;
+                case 'referralLoop': return v.referralRate >= 0;
+                case 'modelChart': return v.modelType !== '';
+                case 'modelFixer': return true;
+                case 'summary': return true;
+                default: return false;
+            }
+        }
+
+        function renderStep() {
+            const step = WIZARD_STEPS[currentStep];
+            let html = '';
+
+            switch (step.type) {
+                case 'msc_input': html = renderMscStep(step); break;
+                case 'pricing_input': html = renderPricingStep(step); break;
+                case 'lifetime_input': html = renderLifetimeStep(step); break;
+                case 'customers_calc': html = renderCustomersCalcStep(step); break;
+                case 'acquisition_calc': html = renderAcquisitionCalcStep(step); break;
+                case 'leads_calc': html = renderLeadsCalcStep(step); break;
+                case 'referral_input': html = renderReferralStep(step); break;
+                case 'model_chart': html = renderModelChartStep(step); break;
+                case 'model_fixer': html = renderModelFixerStep(step); break;
+                case 'summary': html = renderSummaryStep(step); break;
+                default: html = `<p>Unknown step type</p>`;
+            }
+
+            document.getElementById('step-content').innerHTML = html;
+        }
+
+        function renderMscStep(step) {
+            const v = canvas.viability;
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mt-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">3-Year Revenue Goal (ARR)</label>
+                    <div class="radio-cards mb-4">
+                        <label class="radio-card">
+                            <input type="radio" name="mscPreset" value="100000" ${v.mscGoal === 100000 ? 'checked' : ''} onchange="setMscGoal(100000)">
+                            <div class="radio-card-content">
+                                <div class="font-bold text-lg">$100K</div>
+                                <div class="text-xs text-gray-500">Quit day job</div>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="mscPreset" value="1000000" ${v.mscGoal === 1000000 ? 'checked' : ''} onchange="setMscGoal(1000000)">
+                            <div class="radio-card-content">
+                                <div class="font-bold text-lg">$1M</div>
+                                <div class="text-xs text-gray-500">Small company</div>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="mscPreset" value="10000000" ${v.mscGoal === 10000000 ? 'checked' : ''} onchange="setMscGoal(10000000)">
+                            <div class="radio-card-content">
+                                <div class="font-bold text-lg">$10M</div>
+                                <div class="text-xs text-gray-500">VC-scale</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Or enter custom amount</label>
+                    <div class="input-with-addon">
+                        <span class="input-addon prefix">$</span>
+                        <input type="number" class="wizard-textarea" style="min-height: auto; padding: 0.75rem;"
+                            value="${v.mscGoal || ''}"
+                            placeholder="Enter annual revenue goal"
+                            onchange="setMscGoal(parseInt(this.value) || 0)">
+                        <span class="input-addon suffix">/year</span>
+                    </div>
+                </div>
+
+                ${v.mscGoal > 0 ? `
+                    <div class="calculator-result mt-6">
+                        <div class="calculator-result-value">$${formatNumber(v.mscGoal)}</div>
+                        <div class="calculator-result-label">3-Year ARR Goal</div>
+                        <div class="calculator-result-subtext">$${formatNumber(Math.round(v.mscGoal / 12))}/month</div>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        function renderPricingStep(step) {
+            const v = canvas.viability;
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mt-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Pricing Model</label>
+                        <div class="radio-cards">
+                            <label class="radio-card">
+                                <input type="radio" name="pricingModel" value="subscription" ${v.pricingModel === 'subscription' ? 'checked' : ''} onchange="saveViability('pricingModel', 'subscription')">
+                                <div class="radio-card-content">
+                                    <div class="font-semibold">Subscription</div>
+                                    <div class="text-xs text-gray-500">Monthly/Annual</div>
+                                </div>
+                            </label>
+                            <label class="radio-card">
+                                <input type="radio" name="pricingModel" value="one_time" ${v.pricingModel === 'one_time' ? 'checked' : ''} onchange="saveViability('pricingModel', 'one_time')">
+                                <div class="radio-card-content">
+                                    <div class="font-semibold">One-Time</div>
+                                    <div class="text-xs text-gray-500">Pay once</div>
+                                </div>
+                            </label>
+                            <label class="radio-card">
+                                <input type="radio" name="pricingModel" value="freemium" ${v.pricingModel === 'freemium' ? 'checked' : ''} onchange="saveViability('pricingModel', 'freemium')">
+                                <div class="radio-card-content">
+                                    <div class="font-semibold">Freemium</div>
+                                    <div class="text-xs text-gray-500">Free + Paid</div>
+                                </div>
+                            </label>
+                            <label class="radio-card">
+                                <input type="radio" name="pricingModel" value="usage_based" ${v.pricingModel === 'usage_based' ? 'checked' : ''} onchange="saveViability('pricingModel', 'usage_based')">
+                                <div class="radio-card-content">
+                                    <div class="font-semibold">Usage-Based</div>
+                                    <div class="text-xs text-gray-500">Pay per use</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Monthly Price Point</label>
+                        <div class="input-with-addon">
+                            <span class="input-addon prefix">$</span>
+                            <input type="number" class="wizard-textarea" style="min-height: auto; padding: 0.75rem;"
+                                value="${v.monthlyPrice || ''}"
+                                placeholder="e.g., 29"
+                                onchange="saveViability('monthlyPrice', parseFloat(this.value) || 0)">
+                            <span class="input-addon suffix">/month</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Pricing Floor (alternatives cost)</label>
+                            <div class="input-with-addon">
+                                <span class="input-addon prefix">$</span>
+                                <input type="number" class="wizard-textarea" style="min-height: auto; padding: 0.75rem;"
+                                    value="${v.existingAlternativesCost || ''}"
+                                    placeholder="e.g., 10"
+                                    onchange="saveViability('existingAlternativesCost', parseFloat(this.value) || 0)">
+                                <span class="input-addon suffix">/mo</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Pricing Ceiling (UVP value)</label>
+                            <div class="input-with-addon">
+                                <span class="input-addon prefix">$</span>
+                                <input type="number" class="wizard-textarea" style="min-height: auto; padding: 0.75rem;"
+                                    value="${v.uvpValueEstimate || ''}"
+                                    placeholder="e.g., 100"
+                                    onchange="saveViability('uvpValueEstimate', parseFloat(this.value) || 0)">
+                                <span class="input-addon suffix">/mo</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${v.monthlyPrice > 0 ? `
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <div class="text-sm text-gray-600">
+                                <strong>Annual Revenue per Customer:</strong> $${formatNumber(v.monthlyPrice * 12)}/year
+                                ${v.existingAlternativesCost && v.uvpValueEstimate ? `
+                                    <br><strong>Pricing Position:</strong> ${v.monthlyPrice < v.existingAlternativesCost ? '⚠️ Below floor (too cheap?)' :
+                                    v.monthlyPrice > v.uvpValueEstimate ? '⚠️ Above ceiling (too expensive?)' :
+                                    '✓ Within optimal range'}
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderLifetimeStep(step) {
+            const v = canvas.viability;
+            const churnRate = v.customerLifetimeYears > 0 ? (100 / (v.customerLifetimeYears * 12)).toFixed(2) : 0;
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mt-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Expected Customer Lifetime: <strong>${v.customerLifetimeYears || 3} years</strong></label>
+                    <div class="slider-container">
+                        <input type="range" class="slider-input" min="1" max="10" step="0.5"
+                            value="${v.customerLifetimeYears || 3}"
+                            oninput="setCustomerLifetime(parseFloat(this.value))">
+                        <div class="slider-labels">
+                            <span>1 year</span>
+                            <span>5 years</span>
+                            <span>10 years</span>
+                        </div>
+                    </div>
+
+                    <div class="calculator-result mt-6">
+                        <div class="calculator-result-value">${churnRate}%</div>
+                        <div class="calculator-result-label">Monthly Churn Rate</div>
+                        <div class="calculator-result-subtext">${v.customerLifetimeYears || 3} year customer lifetime</div>
+                    </div>
+
+                    ${v.customerLifetimeYears > 5 ? `
+                        <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg mt-4">
+                            <div class="text-sm text-amber-800">
+                                <strong>⚠️ Long lifetime assumption</strong><br>
+                                You're assuming customers stay ${v.customerLifetimeYears} years. Make sure you can justify this with:
+                                <ul class="list-disc ml-4 mt-1">
+                                    <li>High switching costs</li>
+                                    <li>Network effects</li>
+                                    <li>Multi-year contracts</li>
+                                </ul>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderCustomersCalcStep(step) {
+            const v = canvas.viability;
+            const customersNeeded = v.mscGoal && v.monthlyPrice ? Math.ceil(v.mscGoal / (v.monthlyPrice * 12)) : 0;
+
+            // Auto-save calculation
+            if (customersNeeded !== v.activeCustomersNeeded) {
+                saveViability('activeCustomersNeeded', customersNeeded);
+            }
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mt-6">
+                    ${v.mscGoal && v.monthlyPrice ? `
+                        <div class="p-4 bg-gray-50 rounded-lg mb-4">
+                            <div class="text-sm text-gray-600">
+                                <strong>Formula:</strong> Active Customers = $${formatNumber(v.mscGoal)} / ($${v.monthlyPrice} × 12)
+                            </div>
+                        </div>
+
+                        <div class="calculator-result">
+                            <div class="calculator-result-value">${formatNumber(customersNeeded)}</div>
+                            <div class="calculator-result-label">Active Customers Needed</div>
+                            <div class="calculator-result-subtext">paying $${v.monthlyPrice}/month to hit $${formatNumber(v.mscGoal)} ARR</div>
+                        </div>
+                    ` : `
+                        <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div class="text-amber-800">
+                                <strong>Missing inputs!</strong> Please complete:
+                                <ul class="list-disc ml-4 mt-1">
+                                    ${!v.mscGoal ? '<li>MSC Goal (Step 1)</li>' : ''}
+                                    ${!v.monthlyPrice ? '<li>Monthly Price (Step 2)</li>' : ''}
+                                </ul>
+                            </div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        function renderAcquisitionCalcStep(step) {
+            const v = canvas.viability;
+            const churnRate = v.customerLifetimeYears > 0 ? (1 / (v.customerLifetimeYears * 12)) : 0;
+            const minAcquisition = v.activeCustomersNeeded ? Math.ceil(v.activeCustomersNeeded * churnRate) : 0;
+
+            if (minAcquisition !== v.minAcquisitionRate) {
+                saveViability('minAcquisitionRate', minAcquisition);
+                saveViability('monthlyChurnRate', churnRate * 100);
+            }
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mt-6">
+                    ${v.activeCustomersNeeded > 0 ? `
+                        <div class="p-4 bg-gray-50 rounded-lg mb-4">
+                            <div class="text-sm text-gray-600">
+                                <strong>Formula:</strong> ${formatNumber(v.activeCustomersNeeded)} customers × ${(churnRate * 100).toFixed(2)}% churn = ${minAcquisition} customers/month
+                            </div>
+                        </div>
+
+                        <div class="calculator-result">
+                            <div class="calculator-result-value">${minAcquisition}</div>
+                            <div class="calculator-result-label">Customers/Month (Minimum)</div>
+                            <div class="calculator-result-subtext">just to maintain ${formatNumber(v.activeCustomersNeeded)} active customers</div>
+                        </div>
+
+                        <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg mt-4">
+                            <div class="text-sm text-blue-800">
+                                <strong>💡 To GROW</strong>, you'll need to acquire more than ${minAcquisition} customers/month.
+                                For 10x growth, you'll need a hockey-stick acquisition curve!
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div class="text-amber-800">Complete previous steps to calculate acquisition rate.</div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        function renderLeadsCalcStep(step) {
+            const v = canvas.viability;
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mt-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Lead → Customer Conversion Rate</label>
+                    <div class="input-with-addon mb-4">
+                        <input type="number" class="wizard-textarea" style="min-height: auto; padding: 0.75rem;"
+                            value="${v.conversionRate || 1}"
+                            placeholder="e.g., 1"
+                            min="0.1" max="100" step="0.1"
+                            onchange="calculateLeads(parseFloat(this.value) || 1)">
+                        <span class="input-addon suffix">%</span>
+                    </div>
+
+                    ${v.minAcquisitionRate > 0 ? `
+                        <div class="calculator-result">
+                            <div class="calculator-result-value">${formatNumber(Math.ceil(v.minAcquisitionRate / ((v.conversionRate || 1) / 100)))}</div>
+                            <div class="calculator-result-label">Leads Required/Month</div>
+                            <div class="calculator-result-subtext">at ${v.conversionRate || 1}% conversion to acquire ${v.minAcquisitionRate} customers</div>
+                        </div>
+                    ` : `
+                        <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div class="text-amber-800">Complete previous steps to calculate leads required.</div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        function renderReferralStep(step) {
+            const v = canvas.viability;
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mt-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Expected Referral Rate: <strong>${v.referralRate || 0}%</strong></label>
+                    <div class="slider-container">
+                        <input type="range" class="slider-input" min="0" max="100" step="5"
+                            value="${v.referralRate || 0}"
+                            oninput="saveViability('referralRate', parseInt(this.value))">
+                        <div class="slider-labels">
+                            <span>0%</span>
+                            <span>50%</span>
+                            <span>100% (viral)</span>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-gray-50 rounded-lg mt-4">
+                        <div class="text-sm">
+                            <strong>With ${v.referralRate || 0}% referral rate:</strong>
+                            ${v.referralRate >= 100 ? `<br>🚀 Viral growth! Each customer brings another.` :
+                            v.referralRate >= 70 ? `<br>🌟 Excellent! Strong word-of-mouth.` :
+                            v.referralRate >= 40 ? `<br>👍 Great! Significant referral contribution.` :
+                            v.referralRate >= 15 ? `<br>✓ Good. Helpful but won't carry the business.` :
+                            `<br>📊 Low. You'll rely primarily on paid/organic acquisition.`}
+                        </div>
+                    </div>
+
+                    ${v.leadsRequired > 0 ? `
+                        <div class="calculator-result mt-4" style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%);">
+                            <div class="calculator-result-value">${formatNumber(Math.ceil(v.leadsRequired * (1 - (v.referralRate || 0) / 100)))}</div>
+                            <div class="calculator-result-label">Net Leads Needed/Month</div>
+                            <div class="calculator-result-subtext">After ${v.referralRate || 0}% referral contribution</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderModelChartStep(step) {
+            const v = canvas.viability;
+            const annualRevenue = v.monthlyPrice * 12;
+
+            // Determine model type based on annual revenue per customer
+            let modelType = '';
+            if (annualRevenue <= 10) modelType = 'flies';
+            else if (annualRevenue <= 100) modelType = 'mice';
+            else if (annualRevenue <= 1000) modelType = 'rabbits';
+            else if (annualRevenue <= 10000) modelType = 'deer';
+            else if (annualRevenue <= 100000) modelType = 'elephants';
+            else modelType = 'whales';
+
+            if (modelType !== v.modelType) {
+                saveViability('modelType', modelType);
+            }
+
+            const animals = [
+                { id: 'flies', emoji: '🪰', name: 'Flies', revenue: '$10/yr', customers: '1M for $10M' },
+                { id: 'mice', emoji: '🐭', name: 'Mice', revenue: '$100/yr', customers: '100K for $10M' },
+                { id: 'rabbits', emoji: '🐰', name: 'Rabbits', revenue: '$1K/yr', customers: '10K for $10M' },
+                { id: 'deer', emoji: '🦌', name: 'Deer', revenue: '$10K/yr', customers: '1K for $10M' },
+                { id: 'elephants', emoji: '🐘', name: 'Elephants', revenue: '$100K/yr', customers: '100 for $10M' },
+                { id: 'whales', emoji: '🐋', name: 'Whales', revenue: '$1M/yr', customers: '10 for $10M' }
+            ];
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="animal-chart mt-6">
+                    ${animals.map(a => `
+                        <div class="animal-card ${a.id === modelType ? 'active' : ''} ${a.id === 'flies' || a.id === 'whales' ? 'difficult' : ''}">
+                            <div class="animal-emoji">${a.emoji}</div>
+                            <div class="animal-name">${a.name}</div>
+                            <div class="animal-revenue">${a.revenue}</div>
+                            <div class="animal-customers">${a.customers}</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                ${v.monthlyPrice > 0 ? `
+                    <div class="calculator-result mt-4">
+                        <div class="calculator-result-value">${animals.find(a => a.id === modelType)?.emoji || '?'} ${animals.find(a => a.id === modelType)?.name || 'Unknown'}</div>
+                        <div class="calculator-result-label">Your Business Model Type</div>
+                        <div class="calculator-result-subtext">$${formatNumber(annualRevenue)}/year per customer</div>
+                    </div>
+
+                    ${modelType === 'flies' || modelType === 'whales' ? `
+                        <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg mt-4">
+                            <div class="text-amber-800">
+                                <strong>⚠️ Challenging model!</strong><br>
+                                ${modelType === 'flies' ? 'Flies require massive scale, typically need VC funding and viral growth.' :
+                                'Whales require enterprise sales teams, long sales cycles, and significant upfront investment.'}
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="p-4 bg-green-50 border border-green-200 rounded-lg mt-4">
+                            <div class="text-green-800">
+                                <strong>✓ Manageable model!</strong><br>
+                                ${modelType} models can often be bootstrapped with focused marketing and reasonable sales cycles.
+                            </div>
+                        </div>
+                    `}
+                ` : `
+                    <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg mt-4">
+                        <div class="text-amber-800">Set your pricing in Step 2 to see your business model type.</div>
+                    </div>
+                `}
+            `;
+        }
+
+        function renderModelFixerStep(step) {
+            const v = canvas.viability;
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mt-6">
+                    <h3 class="font-semibold mb-4">Model Summary</h3>
+                    <div class="summary-list mb-6">
+                        <div class="summary-item">
+                            <span class="summary-item-label">MSC Goal</span>
+                            <span class="summary-item-value">$${formatNumber(v.mscGoal || 0)}/year</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-item-label">Monthly Price</span>
+                            <span class="summary-item-value">$${v.monthlyPrice || 0}/month</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-item-label">Customers Needed</span>
+                            <span class="summary-item-value">${formatNumber(v.activeCustomersNeeded || 0)}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-item-label">Monthly Acquisition</span>
+                            <span class="summary-item-value">${v.minAcquisitionRate || 0}/month</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-item-label">Leads Needed</span>
+                            <span class="summary-item-value">${formatNumber(v.leadsRequired || 0)}/month</span>
+                        </div>
+                    </div>
+
+                    <h3 class="font-semibold mb-4">Adjustment Levers</h3>
+                    <div class="space-y-3">
+                        <div class="p-4 border border-blue-200 rounded-lg bg-blue-50">
+                            <div class="font-semibold text-blue-800">💰 Raise Pricing (Most Underutilized!)</div>
+                            <p class="text-sm text-blue-700 mt-1">Double price = half the customers needed</p>
+                            <p class="text-sm text-blue-600 mt-1">If you charged $${(v.monthlyPrice || 10) * 2}/month, you'd need ${formatNumber(Math.ceil((v.activeCustomersNeeded || 100) / 2))} customers</p>
+                        </div>
+                        <div class="p-4 border border-gray-200 rounded-lg">
+                            <div class="font-semibold">🎯 Take on Bigger Problem</div>
+                            <p class="text-sm text-gray-600 mt-1">Solve a more valuable problem customers will pay more for</p>
+                        </div>
+                        <div class="p-4 border border-gray-200 rounded-lg">
+                            <div class="font-semibold">👥 Change Customer Segment</div>
+                            <p class="text-sm text-gray-600 mt-1">Target customers with higher willingness to pay</p>
+                        </div>
+                        <div class="p-4 border border-gray-200 rounded-lg">
+                            <div class="font-semibold">📉 Revise MSC Goal (Last Resort)</div>
+                            <p class="text-sm text-gray-600 mt-1">Lower your ambition if the market truly can't support it</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSummaryStep(step) {
+            const v = canvas.viability;
+            const score = calculateViabilityScore();
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+
+                <div class="calculator-result mb-6" style="background: ${score.color === 'green' ? 'linear-gradient(135deg, #166534 0%, #22c55e 100%)' : score.color === 'yellow' ? 'linear-gradient(135deg, #a16207 0%, #f59e0b 100%)' : 'linear-gradient(135deg, #991b1b 0%, #ef4444 100%)'}">
+                    <div class="calculator-result-value">${score.label}</div>
+                    <div class="calculator-result-label">Viability Score</div>
+                    <div class="calculator-result-subtext">${score.message}</div>
+                </div>
+
+                <div class="summary-list mb-6">
+                    <div class="summary-item">
+                        <span class="summary-item-label">MSC Goal</span>
+                        <span class="summary-item-value">${v.mscGoal ? '$' + formatNumber(v.mscGoal) + ' ARR' : '✗ Not set'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">Monthly Price</span>
+                        <span class="summary-item-value">${v.monthlyPrice ? '$' + v.monthlyPrice + '/mo' : '✗ Not set'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">Customer Lifetime</span>
+                        <span class="summary-item-value">${v.customerLifetimeYears ? v.customerLifetimeYears + ' years' : '✗ Not set'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">Customers Needed</span>
+                        <span class="summary-item-value">${v.activeCustomersNeeded ? formatNumber(v.activeCustomersNeeded) : '✗ Not calculated'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">Model Type</span>
+                        <span class="summary-item-value">${v.modelType ? v.modelType.charAt(0).toUpperCase() + v.modelType.slice(1) : '✗ Unknown'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">Model Viable?</span>
+                        <span class="summary-item-value ${score.viable ? 'text-green-600' : 'text-red-600'}">${score.viable ? '✓ Yes' : '⚠️ Needs work'}</span>
+                    </div>
+                </div>
+
+                ${step.detailed}
+
+                <div class="flex gap-3 mt-6">
+                    <button class="btn btn-secondary flex-1" onclick="exportSummary()">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M3 12v2h10v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Export Summary
+                    </button>
+                    <a href="feasibility.html?id=${canvas.id}" class="btn btn-primary flex-1">
+                        Continue to Feasibility
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </a>
+                </div>
+            `;
+        }
+
+        function calculateViabilityScore() {
+            const v = canvas.viability;
+            let points = 0;
+            let total = 8;
+
+            if (v.mscGoal > 0) points++;
+            if (v.monthlyPrice > 0 && v.pricingModel) points++;
+            if (v.customerLifetimeYears > 0) points++;
+            if (v.activeCustomersNeeded > 0) points++;
+            if (v.minAcquisitionRate > 0) points++;
+            if (v.leadsRequired > 0) points++;
+            if (v.modelType) points++;
+
+            // Model viability check
+            const viable = v.modelType && !['flies', 'whales'].includes(v.modelType);
+            if (viable) points++;
+
+            const percentage = (points / total) * 100;
+            let color, label, message;
+
+            if (percentage >= 85 && viable) {
+                color = 'green';
+                label = 'VIABLE';
+                message = 'Model works on paper!';
+            } else if (percentage >= 50) {
+                color = 'yellow';
+                label = 'NEEDS WORK';
+                message = 'Some assumptions need validation';
+            } else {
+                color = 'red';
+                label = 'INCOMPLETE';
+                message = 'Fill in more inputs to assess viability';
+            }
+
+            canvas = CIFStorage.updateCanvas(canvas.id, {
+                viability: { modelViable: viable },
+                scores: {
+                    ...canvas.scores,
+                    viability: { completed: points, total, score: color }
+                }
+            });
+
+            return { color, label, message, viable, points, total };
+        }
+
+        // Helper functions
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function setMscGoal(value) {
+            saveViability('mscGoal', value);
+            render();
+        }
+
+        function setCustomerLifetime(years) {
+            saveViability('customerLifetimeYears', years);
+            render();
+        }
+
+        function calculateLeads(conversionRate) {
+            const v = canvas.viability;
+            const leadsRequired = v.minAcquisitionRate ? Math.ceil(v.minAcquisitionRate / (conversionRate / 100)) : 0;
+            canvas = CIFStorage.updateCanvas(canvas.id, {
+                viability: { conversionRate, leadsRequired }
+            });
+            canvas = CIFStorage.getCanvas(canvas.id);
+            render();
+        }
+
+        function saveViability(field, value) {
+            canvas = CIFStorage.updateCanvas(canvas.id, {
+                viability: { [field]: value }
+            });
+            canvas = CIFStorage.getCanvas(canvas.id);
+        }
+
+        function updateSectionScore() {
+            const scoreEl = document.getElementById('section-score');
+            const score = canvas.scores?.viability?.score;
+            if (score) {
+                scoreEl.className = `score-indicator ${score}`;
+                scoreEl.textContent = score === 'green' ? '✓' : score === 'yellow' ? '!' : '✗';
+            }
+        }
+
+        function goToStep(stepIndex) {
+            if (stepIndex >= 0 && stepIndex < WIZARD_STEPS.length) {
+                currentStep = stepIndex;
+                render();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) goToStep(currentStep - 1);
+        }
+
+        function nextStep() {
+            if (currentStep < WIZARD_STEPS.length - 1) goToStep(currentStep + 1);
+            else window.location.href = `feasibility.html?id=${canvas.id}`;
+        }
+
+        function skipStep() { nextStep(); }
+
+        function exportSummary() {
+            const v = canvas.viability;
+            const score = calculateViabilityScore();
+
+            const markdown = `# Viability Stress Test Summary
+## ${canvas.title}
+
+**Score: ${score.label}** (${score.points}/${score.total})
+${score.message}
+
+---
+
+### Fermi Estimate Results
+
+| Metric | Value |
+|--------|-------|
+| MSC Goal | $${formatNumber(v.mscGoal || 0)}/year |
+| Monthly Price | $${v.monthlyPrice || 0}/month |
+| Annual Revenue/Customer | $${formatNumber((v.monthlyPrice || 0) * 12)}/year |
+| Customer Lifetime | ${v.customerLifetimeYears || 0} years |
+| Monthly Churn | ${v.monthlyChurnRate?.toFixed(2) || 0}% |
+| Active Customers Needed | ${formatNumber(v.activeCustomersNeeded || 0)} |
+| Min Monthly Acquisition | ${v.minAcquisitionRate || 0} customers |
+| Lead → Customer Rate | ${v.conversionRate || 1}% |
+| Leads Required | ${formatNumber(v.leadsRequired || 0)}/month |
+| Referral Rate | ${v.referralRate || 0}% |
+
+### Model Type: ${v.modelType ? v.modelType.charAt(0).toUpperCase() + v.modelType.slice(1) : 'Unknown'}
+
+**Model Viable:** ${score.viable ? 'Yes' : 'Needs work'}
+
+---
+*Generated by Continuous Innovation Framework App*
+`;
+
+            CIFComponents.downloadFile(
+                markdown,
+                `${canvas.title.replace(/[^a-z0-9]/gi, '_')}_viability.md`,
+                'text/markdown'
+            );
+            CIFComponents.ToastManager.success('Summary exported! Great success!');
+        }
+    </script>
+</body>
+</html>

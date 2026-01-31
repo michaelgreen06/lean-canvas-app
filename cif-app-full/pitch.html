@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Model Pitch - CIF</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="shared/styles.css">
+</head>
+<body class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="btn btn-secondary btn-sm" title="Back to Dashboard">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Dashboard
+                </a>
+                <div id="title-container"></div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-500">Section 5 of 5</span>
+                <span class="score-indicator neutral" id="section-score">-</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <div id="progress-container" class="mb-4"></div>
+        <div id="step-nav-container" class="mb-6"></div>
+        <div id="step-content" class="wizard-step"></div>
+
+        <div class="wizard-navigation">
+            <button id="prev-btn" class="btn btn-secondary" onclick="prevStep()">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Previous
+            </button>
+            <div class="flex gap-2">
+                <button class="btn btn-secondary" onclick="skipStep()">Skip</button>
+                <button id="next-btn" class="btn btn-primary" onclick="nextStep()">
+                    Next
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="shared/storage.js"></script>
+    <script src="shared/components.js"></script>
+    <script>
+        // Wizard steps for Business Model Pitch (Chapter 5)
+        const WIZARD_STEPS = [
+            {
+                id: 'elevatorPitch',
+                title: 'Elevator Pitch Builder',
+                brief: 'Create your 30-second pitch',
+                detailed: `
+                    <p><strong>Don't lead with solution</strong>, lead with the desirability story!</p>
+                    <p class="mt-3">Use this template to structure your pitch:</p>
+                    <div class="p-4 bg-gray-100 rounded-lg mt-3 text-sm font-mono">
+                        When <span class="text-blue-600">[customers]</span> encounter a <span class="text-blue-600">[triggering event]</span>,<br>
+                        they need to do <span class="text-blue-600">[job-to-be-done]</span> to achieve <span class="text-blue-600">[desired outcome]</span>.<br><br>
+                        They would normally use <span class="text-blue-600">[existing alternatives]</span>,<br>
+                        but because of <span class="text-blue-600">[switching trigger]</span> these have <span class="text-blue-600">[problems]</span>.<br>
+                        If left unaddressed, then <span class="text-blue-600">[what's at stake]</span>.<br><br>
+                        So we built a solution that helps <span class="text-blue-600">[customers]</span><br>
+                        achieve <span class="text-blue-600">[desired outcome]</span> by <span class="text-blue-600">[unique value proposition]</span>.
+                    </div>
+                `,
+                type: 'elevator_pitch'
+            },
+            {
+                id: 'worldview',
+                title: 'Worldview Selector',
+                brief: 'Who are you pitching to?',
+                detailed: `
+                    <p>Different audiences care about different things:</p>
+                `,
+                type: 'worldview'
+            },
+            {
+                id: 'pitchDeck',
+                title: '10-Slide Pitch Deck Generator',
+                brief: 'Auto-generate your pitch deck content',
+                detailed: `
+                    <p>Your pitch deck should tell a compelling story in 10 slides:</p>
+                    <p class="mt-3"><strong>Desirability (Slides 1-4):</strong> Why now, what's at stake, what's broken, the fix</p>
+                    <p class="mt-3"><strong>Viability (Slides 5-7):</strong> Your moat, how you make money, key milestones</p>
+                    <p class="mt-3"><strong>Feasibility (Slides 8-10):</strong> Current progress, the team, the ask</p>
+                `,
+                type: 'pitch_deck'
+            },
+            {
+                id: 'summary',
+                title: 'Pitch Readiness Score',
+                brief: 'Are you ready to pitch?',
+                detailed: `
+                    <div class="quote-block">
+                        <p class="quote-block-text">"The number one reason startups fail is building something nobody wants. The number two reason is not getting the right buy-in from key stakeholders."</p>
+                        <p class="quote-block-author">- Ash Maurya</p>
+                    </div>
+                `,
+                type: 'summary'
+            }
+        ];
+
+        let canvas = null;
+        let currentStep = 0;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const canvasId = params.get('id');
+
+            if (!canvasId) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            canvas = CIFStorage.getCanvas(canvasId);
+            if (!canvas) {
+                CIFComponents.ToastManager.error('Canvas not found');
+                setTimeout(() => window.location.href = 'index.html', 1500);
+                return;
+            }
+
+            renderTitle();
+            render();
+        });
+
+        function renderTitle() {
+            const container = document.getElementById('title-container');
+            const titleInput = CIFComponents.createEditableTitle(canvas.title, (newTitle) => {
+                canvas = CIFStorage.updateCanvas(canvas.id, { title: newTitle });
+                document.title = `${newTitle} - Pitch`;
+            });
+            container.innerHTML = '';
+            container.appendChild(titleInput);
+            document.title = `${canvas.title} - Pitch`;
+        }
+
+        function render() {
+            const completedSteps = [];
+            WIZARD_STEPS.forEach((step, index) => {
+                if (isStepComplete(step)) completedSteps.push(index);
+            });
+
+            document.getElementById('progress-container').innerHTML =
+                CIFComponents.createProgressBar(completedSteps.length, WIZARD_STEPS.length);
+            document.getElementById('step-nav-container').innerHTML =
+                CIFComponents.createStepNav(currentStep, WIZARD_STEPS.length, completedSteps);
+
+            document.querySelectorAll('.step-nav-item').forEach(btn => {
+                btn.addEventListener('click', () => goToStep(parseInt(btn.dataset.step)));
+            });
+
+            renderStep();
+
+            document.getElementById('prev-btn').style.visibility = currentStep === 0 ? 'hidden' : 'visible';
+            const nextBtn = document.getElementById('next-btn');
+            if (currentStep === WIZARD_STEPS.length - 1) {
+                nextBtn.innerHTML = 'Finish <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            } else {
+                nextBtn.innerHTML = 'Next <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            }
+
+            updateSectionScore();
+        }
+
+        function isStepComplete(step) {
+            const p = canvas.pitch;
+            switch (step.id) {
+                case 'elevatorPitch': return p.elevatorPitch && p.elevatorPitch.trim();
+                case 'worldview': return p.targetAudience !== '';
+                case 'pitchDeck': return p.slide1WhyNow || p.slide4TheFix;
+                case 'summary': return true;
+                default: return false;
+            }
+        }
+
+        function renderStep() {
+            const step = WIZARD_STEPS[currentStep];
+            let html = '';
+
+            switch (step.type) {
+                case 'elevator_pitch': html = renderElevatorPitchStep(step); break;
+                case 'worldview': html = renderWorldviewStep(step); break;
+                case 'pitch_deck': html = renderPitchDeckStep(step); break;
+                case 'summary': html = renderSummaryStep(step); break;
+                default: html = `<p>Unknown step type</p>`;
+            }
+
+            document.getElementById('step-content').innerHTML = html;
+        }
+
+        function renderElevatorPitchStep(step) {
+            const p = canvas.pitch;
+            const lc = canvas.leanCanvas || canvas.fields;
+            const des = canvas.desirability;
+
+            // Auto-fill suggestions from previous sections
+            const suggestions = {
+                customers: lc.customerSegments || des.customerSegments || '[your customers]',
+                triggeringEvent: des.switchingTriggerType ?
+                    (des.switchingTriggerType === 'bad_experience' ? 'a problem with their current solution' :
+                     des.switchingTriggerType === 'change_circumstance' ? 'a change in their situation' :
+                     'learning about a better way') : '[triggering event]',
+                existingAlternatives: lc.existingAlternatives || des.existingAlternatives || '[existing alternatives]',
+                problems: lc.problem || des.problems || '[problems]',
+                uvp: lc.uniqueValueProposition || des.uvpReview || '[your UVP]'
+            };
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show template', step.detailed, true)}
+
+                <div class="mt-6 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Triggering Event</label>
+                            <input type="text" class="wizard-textarea" style="min-height: auto; padding: 0.75rem;"
+                                value="${escapeHtml(p.triggeringEvent || '')}"
+                                placeholder="e.g., tax deadline approaching"
+                                onchange="savePitch('triggeringEvent', this.value)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Job to be Done</label>
+                            <input type="text" class="wizard-textarea" style="min-height: auto; padding: 0.75rem;"
+                                value="${escapeHtml(p.jobToBeDone || '')}"
+                                placeholder="e.g., organize their finances"
+                                onchange="savePitch('jobToBeDone', this.value)">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Desired Outcome</label>
+                            <input type="text" class="wizard-textarea" style="min-height: auto; padding: 0.75rem;"
+                                value="${escapeHtml(p.desiredOutcome || '')}"
+                                placeholder="e.g., peace of mind at tax time"
+                                onchange="savePitch('desiredOutcome', this.value)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">What's at Stake</label>
+                            <input type="text" class="wizard-textarea" style="min-height: auto; padding: 0.75rem;"
+                                value="${escapeHtml(p.whatsAtStake || '')}"
+                                placeholder="e.g., IRS penalties, missed deductions"
+                                onchange="savePitch('whatsAtStake', this.value)">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Full Elevator Pitch</label>
+                        <textarea
+                            id="elevator-pitch"
+                            class="wizard-textarea"
+                            style="min-height: 200px;"
+                            placeholder="Write your complete elevator pitch here..."
+                            oninput="savePitch('elevatorPitch', this.value)"
+                        >${escapeHtml(p.elevatorPitch || '')}</textarea>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary flex-1" onclick="generatePitch()">
+                            ✨ Auto-Generate from Data
+                        </button>
+                        <button class="btn btn-secondary" onclick="copyPitch()">
+                            📋 Copy
+                        </button>
+                    </div>
+
+                    ${p.elevatorPitch ? `
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <div class="text-sm text-gray-600">
+                                <strong>Character count:</strong> ${p.elevatorPitch.length}
+                                ${p.elevatorPitch.length > 500 ? '<span class="text-amber-600"> (consider shortening)</span>' : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderWorldviewStep(step) {
+            const p = canvas.pitch;
+
+            const worldviews = [
+                {
+                    id: 'investor',
+                    icon: '💰',
+                    title: 'Investor',
+                    cares: 'Market size, Profitability, Defensibility, TRACTION',
+                    highlight: 'Customer Segments, Revenue Streams, Cost Structure, Unfair Advantage, Key Metrics',
+                    tips: [
+                        'Lead with market opportunity size',
+                        'Show traction metrics prominently',
+                        'Emphasize unfair advantage and moat',
+                        'Clear path to profitability'
+                    ]
+                },
+                {
+                    id: 'customer',
+                    icon: '🧑',
+                    title: 'Customer',
+                    cares: 'Problems, UVP, Demo, Price',
+                    highlight: 'Problem, UVP, Solution, Revenue Streams',
+                    tips: [
+                        'Lead with their pain point',
+                        'Show demo, not slides',
+                        'Focus on outcomes, not features',
+                        'Price anchoring against alternatives'
+                    ]
+                },
+                {
+                    id: 'advisor',
+                    icon: '🎓',
+                    title: 'Advisor',
+                    cares: 'Learning, Assumptions, Risks',
+                    highlight: 'All areas - seeking feedback',
+                    tips: [
+                        'Use learning frame, not pitching frame',
+                        'Be open about uncertainties',
+                        'Ask for specific feedback',
+                        'Seek diverse perspectives'
+                    ]
+                }
+            ];
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <div class="mt-6 space-y-4">
+                    ${worldviews.map(wv => `
+                        <div class="p-4 border-2 rounded-lg cursor-pointer transition-all ${p.targetAudience === wv.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}"
+                             onclick="selectWorldview('${wv.id}')">
+                            <div class="flex items-start gap-4">
+                                <div class="text-3xl">${wv.icon}</div>
+                                <div class="flex-1">
+                                    <div class="font-semibold text-lg">${wv.title} Worldview</div>
+                                    <div class="text-sm text-gray-600 mt-1"><strong>Cares about:</strong> ${wv.cares}</div>
+                                    <div class="text-sm text-gray-500 mt-1"><strong>Highlight:</strong> ${wv.highlight}</div>
+                                    ${p.targetAudience === wv.id ? `
+                                        <div class="mt-3 p-3 bg-white rounded border">
+                                            <div class="text-sm font-medium mb-2">Tips for ${wv.title} Pitch:</div>
+                                            <ul class="list-disc ml-4 text-sm text-gray-600 space-y-1">
+                                                ${wv.tips.map(tip => `<li>${tip}</li>`).join('')}
+                                            </ul>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center ${p.targetAudience === wv.id ? 'border-blue-500 bg-blue-500' : 'border-gray-300'}">
+                                    ${p.targetAudience === wv.id ? '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2"/></svg>' : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderPitchDeckStep(step) {
+            const p = canvas.pitch;
+            const lc = canvas.leanCanvas || canvas.fields;
+            const des = canvas.desirability;
+            const via = canvas.viability;
+            const fea = canvas.feasibility;
+
+            const slides = [
+                { num: 1, category: 'Desirability', title: 'Why Now', field: 'slide1WhyNow',
+                    autoFill: des.switchingTriggerType ? `Switching trigger: ${formatTriggerType(des.switchingTriggerType)}\n\nEarly adopters: ${des.earlyAdopters || lc.earlyAdopters || ''}` : '' },
+                { num: 2, category: 'Desirability', title: "What's at Stake", field: 'slide2WhatsAtStake',
+                    autoFill: p.whatsAtStake || `Market opportunity: ${lc.customerSegments || ''}\n\nIf left unaddressed: Lost revenue, wasted time, frustration` },
+                { num: 3, category: 'Desirability', title: "What's Broken", field: 'slide3WhatsChain',
+                    autoFill: `Problems with existing alternatives:\n\n${des.problems || lc.problem || ''}\n\nExisting alternatives:\n${des.existingAlternatives || lc.existingAlternatives || ''}` },
+                { num: 4, category: 'Desirability', title: 'The Fix', field: 'slide4TheFix',
+                    autoFill: `Solution:\n${lc.solution || ''}\n\nUVP:\n${des.uvpReview || lc.uniqueValueProposition || ''}` },
+                { num: 5, category: 'Viability', title: 'Your Moat', field: 'slide5YourMoat',
+                    autoFill: lc.unfairAdvantage || 'Define your unfair advantage...' },
+                { num: 6, category: 'Viability', title: 'How You Make Money', field: 'slide6HowYouMakeMoney',
+                    autoFill: via.monthlyPrice ? `Pricing: $${via.monthlyPrice}/month (${via.pricingModel || 'subscription'})\n\nLTV: $${formatNumber(via.monthlyPrice * 12 * (via.customerLifetimeYears || 3))}\n\nTarget: ${formatNumber(via.activeCustomersNeeded || 0)} customers for $${formatNumber(via.mscGoal || 0)} ARR` : lc.revenueStreams || '' },
+                { num: 7, category: 'Viability', title: 'Key Milestones', field: 'slide7KeyMilestones',
+                    autoFill: fea.year1Customers ? `Year 1: ${formatNumber(fea.year1Customers)} customers\nYear 2: ${formatNumber(fea.year2Customers)} customers\nYear 3: ${formatNumber(fea.year3Customers)} customers (MSC)` : '' },
+                { num: 8, category: 'Feasibility', title: 'Current Progress', field: 'slide8CurrentProgress',
+                    autoFill: fea.nowPlanNotes ? `NOW phase focus:\n${fea.nowPlanNotes}` : 'Where are you on the journey?' },
+                { num: 9, category: 'Feasibility', title: 'The Team', field: 'slide9TheTeam',
+                    autoFill: 'Key team members and their relevant experience...\n\n(Hacker, Hustler, Designer)' },
+                { num: 10, category: 'Feasibility', title: 'The Ask', field: 'slide10TheAsk',
+                    autoFill: p.targetAudience === 'investor' ? 'Funding amount and use of funds...' :
+                              p.targetAudience === 'customer' ? 'Call to action: Sign up, schedule demo...' :
+                              'What feedback or help are you seeking?' }
+            ];
+
+            const categoryColors = {
+                'Desirability': 'blue',
+                'Viability': 'green',
+                'Feasibility': 'purple'
+            };
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show structure', step.detailed)}
+
+                <div class="mt-6">
+                    <div class="flex gap-2 mb-4">
+                        <button class="btn btn-primary" onclick="autoFillAllSlides()">
+                            ✨ Auto-Fill All from Previous Sections
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportPitchDeck()">
+                            📥 Export Deck
+                        </button>
+                    </div>
+
+                    <div class="pitch-slides">
+                        ${slides.map(slide => `
+                            <div class="pitch-slide">
+                                <div class="pitch-slide-header">
+                                    <span class="pitch-slide-number">${slide.num}</span>
+                                    <span class="pitch-slide-title">${slide.title}</span>
+                                    <span class="text-xs px-2 py-0.5 rounded bg-${categoryColors[slide.category]}-100 text-${categoryColors[slide.category]}-700 ml-auto">${slide.category}</span>
+                                </div>
+                                <div class="pitch-slide-content">
+                                    <textarea
+                                        class="w-full h-24 border-0 bg-transparent resize-none text-sm"
+                                        placeholder="${slide.autoFill || 'Enter content for this slide...'}"
+                                        oninput="savePitch('${slide.field}', this.value)"
+                                    >${escapeHtml(p[slide.field] || '')}</textarea>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSummaryStep(step) {
+            const p = canvas.pitch;
+            const score = calculatePitchScore();
+            const overallScore = calculateOverallReadiness();
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+
+                <!-- Overall Readiness -->
+                <div class="calculator-result mb-6" style="background: ${overallScore.color === 'green' ? 'linear-gradient(135deg, #166534 0%, #22c55e 100%)' : overallScore.color === 'yellow' ? 'linear-gradient(135deg, #a16207 0%, #f59e0b 100%)' : 'linear-gradient(135deg, #991b1b 0%, #ef4444 100%)'}">
+                    <div class="calculator-result-value">${overallScore.label}</div>
+                    <div class="calculator-result-label">Overall Idea Readiness</div>
+                    <div class="calculator-result-subtext">${overallScore.message}</div>
+                </div>
+
+                <!-- Section Scores -->
+                <div class="grid grid-cols-5 gap-2 mb-6">
+                    ${['Lean Canvas', 'Desirability', 'Viability', 'Feasibility', 'Pitch'].map((section, i) => {
+                        const sectionKey = ['leanCanvas', 'desirability', 'viability', 'feasibility', 'pitch'][i];
+                        const sectionScore = canvas.scores?.[sectionKey];
+                        const scoreColor = sectionScore?.score || 'neutral';
+                        return `
+                            <div class="text-center p-3 rounded-lg bg-gray-50">
+                                <div class="score-indicator ${scoreColor} mx-auto mb-1">
+                                    ${scoreColor === 'green' ? '✓' : scoreColor === 'yellow' ? '!' : scoreColor === 'red' ? '✗' : '-'}
+                                </div>
+                                <div class="text-xs font-medium">${section}</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+
+                <!-- Checklist -->
+                <div class="p-4 bg-white border rounded-lg mb-6">
+                    <h3 class="font-semibold mb-3">Pitch Readiness Checklist</h3>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <span class="checklist-checkbox ${p.elevatorPitch ? 'checked' : ''}">
+                                ${p.elevatorPitch ? '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2"/></svg>' : ''}
+                            </span>
+                            <span class="checklist-text ${p.elevatorPitch ? 'checked' : ''}">Elevator pitch complete</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-checkbox ${canvas.scores?.desirability?.score === 'green' ? 'checked' : ''}">
+                                ${canvas.scores?.desirability?.score === 'green' ? '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2"/></svg>' : ''}
+                            </span>
+                            <span class="checklist-text ${canvas.scores?.desirability?.score === 'green' ? 'checked' : ''}">Desirability stress test passed</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-checkbox ${canvas.scores?.viability?.score === 'green' ? 'checked' : ''}">
+                                ${canvas.scores?.viability?.score === 'green' ? '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2"/></svg>' : ''}
+                            </span>
+                            <span class="checklist-text ${canvas.scores?.viability?.score === 'green' ? 'checked' : ''}">Viability stress test passed</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-checkbox ${canvas.scores?.feasibility?.score === 'green' ? 'checked' : ''}">
+                                ${canvas.scores?.feasibility?.score === 'green' ? '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2"/></svg>' : ''}
+                            </span>
+                            <span class="checklist-text ${canvas.scores?.feasibility?.score === 'green' ? 'checked' : ''}">Feasibility plan defined</span>
+                        </li>
+                        <li class="checklist-item">
+                            <span class="checklist-checkbox ${p.slide4TheFix ? 'checked' : ''}">
+                                ${p.slide4TheFix ? '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2"/></svg>' : ''}
+                            </span>
+                            <span class="checklist-text ${p.slide4TheFix ? 'checked' : ''}">10-slide deck content generated</span>
+                        </li>
+                    </ul>
+                </div>
+
+                ${step.detailed}
+
+                <div class="flex gap-3 mt-6">
+                    <button class="btn btn-secondary flex-1" onclick="exportAll()">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M3 12v2h10v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Export Everything
+                    </button>
+                    <a href="index.html" class="btn btn-primary flex-1">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8l6-6 6 6M4 7v6h3v-4h2v4h3V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Return to Dashboard
+                    </a>
+                </div>
+            `;
+        }
+
+        function calculatePitchScore() {
+            const p = canvas.pitch;
+            let points = 0;
+            let total = 4;
+
+            if (p.elevatorPitch) points++;
+            if (p.targetAudience) points++;
+            if (p.slide4TheFix) points++;
+            if (p.slide10TheAsk) points++;
+
+            const percentage = (points / total) * 100;
+            let color, label, message;
+
+            if (percentage >= 75) {
+                color = 'green';
+                label = 'READY';
+                message = 'Your pitch is ready!';
+            } else if (percentage >= 50) {
+                color = 'yellow';
+                label = 'ALMOST';
+                message = 'A few more items to complete';
+            } else {
+                color = 'red';
+                label = 'IN PROGRESS';
+                message = 'Complete your pitch materials';
+            }
+
+            canvas = CIFStorage.updateCanvas(canvas.id, {
+                scores: {
+                    ...canvas.scores,
+                    pitch: { completed: points, total, score: color }
+                }
+            });
+
+            return { color, label, message, points, total };
+        }
+
+        function calculateOverallReadiness() {
+            const scores = canvas.scores || {};
+            const sectionScores = [
+                scores.desirability?.score,
+                scores.viability?.score,
+                scores.feasibility?.score,
+                scores.pitch?.score
+            ].filter(s => s);
+
+            if (sectionScores.length === 0) {
+                return { color: 'red', label: 'INCOMPLETE', message: 'Complete stress tests to assess readiness' };
+            }
+
+            const greenCount = sectionScores.filter(s => s === 'green').length;
+            const redCount = sectionScores.filter(s => s === 'red').length;
+
+            if (redCount > 1) {
+                return { color: 'red', label: 'NOT READY', message: 'Multiple sections need work' };
+            } else if (greenCount >= 3) {
+                return { color: 'green', label: 'READY TO PITCH', message: 'Your idea is well validated!' };
+            } else {
+                return { color: 'yellow', label: 'GETTING THERE', message: 'Some sections still need attention' };
+            }
+        }
+
+        // Helper functions
+        function formatNumber(num) {
+            if (!num) return '0';
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function formatTriggerType(type) {
+            const types = {
+                'bad_experience': 'Bad Experience',
+                'change_circumstance': 'Change in Circumstance',
+                'awareness_event': 'Awareness Event'
+            };
+            return types[type] || type;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function savePitch(field, value) {
+            canvas = CIFStorage.updateCanvas(canvas.id, {
+                pitch: { [field]: value }
+            });
+            canvas = CIFStorage.getCanvas(canvas.id);
+        }
+
+        function selectWorldview(id) {
+            savePitch('targetAudience', id);
+            render();
+        }
+
+        function generatePitch() {
+            const lc = canvas.leanCanvas || canvas.fields;
+            const des = canvas.desirability;
+            const p = canvas.pitch;
+
+            const pitch = `When ${lc.customerSegments || des.customerSegments || '[customers]'} encounter ${p.triggeringEvent || '[a triggering event]'}, they need to ${p.jobToBeDone || '[do something]'} to achieve ${p.desiredOutcome || '[their desired outcome]'}.
+
+They would normally use ${lc.existingAlternatives || des.existingAlternatives || '[existing alternatives]'}, but these have problems: ${des.problems || lc.problem || '[problems]'}.
+
+If left unaddressed, ${p.whatsAtStake || '[bad things happen]'}.
+
+So we built a solution that helps them achieve ${p.desiredOutcome || '[their outcome]'} by ${des.uvpReview || lc.uniqueValueProposition || '[our unique approach]'}.`;
+
+            document.getElementById('elevator-pitch').value = pitch;
+            savePitch('elevatorPitch', pitch);
+            CIFComponents.ToastManager.success('Pitch generated! Very nice!');
+        }
+
+        function copyPitch() {
+            const p = canvas.pitch;
+            if (p.elevatorPitch) {
+                CIFComponents.copyToClipboard(p.elevatorPitch);
+            } else {
+                CIFComponents.ToastManager.error('No pitch to copy');
+            }
+        }
+
+        function autoFillAllSlides() {
+            const lc = canvas.leanCanvas || canvas.fields;
+            const des = canvas.desirability;
+            const via = canvas.viability;
+            const fea = canvas.feasibility;
+            const p = canvas.pitch;
+
+            const updates = {
+                slide1WhyNow: des.switchingTriggerType ? `Switching trigger: ${formatTriggerType(des.switchingTriggerType)}\n\nEarly adopters: ${des.earlyAdopters || lc.earlyAdopters || ''}` : p.slide1WhyNow || '',
+                slide2WhatsAtStake: p.whatsAtStake || `Market: ${lc.customerSegments || ''}\n\nProblem urgency: High`,
+                slide3WhatsChain: `Problems:\n${des.problems || lc.problem || ''}\n\nExisting alternatives:\n${des.existingAlternatives || lc.existingAlternatives || ''}`,
+                slide4TheFix: `Solution:\n${lc.solution || ''}\n\nUVP:\n${des.uvpReview || lc.uniqueValueProposition || ''}`,
+                slide5YourMoat: lc.unfairAdvantage || 'Building...',
+                slide6HowYouMakeMoney: via.monthlyPrice ? `$${via.monthlyPrice}/month (${via.pricingModel || 'subscription'})\nTarget: ${formatNumber(via.activeCustomersNeeded || 0)} customers\nGoal: $${formatNumber(via.mscGoal || 0)} ARR` : lc.revenueStreams || '',
+                slide7KeyMilestones: fea.year1Customers ? `Y1: ${formatNumber(fea.year1Customers)} customers\nY2: ${formatNumber(fea.year2Customers)} customers\nY3: ${formatNumber(fea.year3Customers)} customers` : '',
+                slide8CurrentProgress: fea.nowPlanNotes || 'Starting Problem/Solution Fit phase',
+                slide9TheTeam: 'Key team members...',
+                slide10TheAsk: p.targetAudience === 'investor' ? 'Investment ask...' : p.targetAudience === 'customer' ? 'Try our product today!' : 'Looking for feedback on...'
+            };
+
+            canvas = CIFStorage.updateCanvas(canvas.id, { pitch: updates });
+            canvas = CIFStorage.getCanvas(canvas.id);
+            render();
+            CIFComponents.ToastManager.success('Slides auto-filled! Great success!');
+        }
+
+        function exportPitchDeck() {
+            const p = canvas.pitch;
+            const slides = [
+                { num: 1, title: 'Why Now', content: p.slide1WhyNow },
+                { num: 2, title: "What's at Stake", content: p.slide2WhatsAtStake },
+                { num: 3, title: "What's Broken", content: p.slide3WhatsChain },
+                { num: 4, title: 'The Fix', content: p.slide4TheFix },
+                { num: 5, title: 'Your Moat', content: p.slide5YourMoat },
+                { num: 6, title: 'How You Make Money', content: p.slide6HowYouMakeMoney },
+                { num: 7, title: 'Key Milestones', content: p.slide7KeyMilestones },
+                { num: 8, title: 'Current Progress', content: p.slide8CurrentProgress },
+                { num: 9, title: 'The Team', content: p.slide9TheTeam },
+                { num: 10, title: 'The Ask', content: p.slide10TheAsk }
+            ];
+
+            let markdown = `# ${canvas.title} - Pitch Deck\n\n`;
+            markdown += `## Elevator Pitch\n\n${p.elevatorPitch || 'Not defined'}\n\n---\n\n`;
+
+            slides.forEach(slide => {
+                markdown += `## Slide ${slide.num}: ${slide.title}\n\n${slide.content || 'Not defined'}\n\n---\n\n`;
+            });
+
+            markdown += `\n*Generated by Continuous Innovation Framework App*`;
+
+            CIFComponents.downloadFile(
+                markdown,
+                `${canvas.title.replace(/[^a-z0-9]/gi, '_')}_pitch_deck.md`,
+                'text/markdown'
+            );
+            CIFComponents.ToastManager.success('Pitch deck exported! Very nice!');
+        }
+
+        function exportAll() {
+            const lc = canvas.leanCanvas || canvas.fields;
+            const des = canvas.desirability;
+            const via = canvas.viability;
+            const fea = canvas.feasibility;
+            const p = canvas.pitch;
+
+            let markdown = `# ${canvas.title} - Complete Business Model Report\n\n`;
+            markdown += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+
+            // Lean Canvas
+            markdown += `## 1. Lean Canvas\n\n`;
+            markdown += `### Customer Segments\n${lc.customerSegments || 'Not defined'}\n\n`;
+            markdown += `### Early Adopters\n${lc.earlyAdopters || 'Not defined'}\n\n`;
+            markdown += `### Problem\n${lc.problem || 'Not defined'}\n\n`;
+            markdown += `### Existing Alternatives\n${lc.existingAlternatives || 'Not defined'}\n\n`;
+            markdown += `### UVP\n${lc.uniqueValueProposition || 'Not defined'}\n\n`;
+            markdown += `### Solution\n${lc.solution || 'Not defined'}\n\n`;
+            markdown += `### Channels\n${lc.channels || 'Not defined'}\n\n`;
+            markdown += `### Revenue Streams\n${lc.revenueStreams || 'Not defined'}\n\n`;
+            markdown += `### Cost Structure\n${lc.costStructure || 'Not defined'}\n\n`;
+            markdown += `### Key Metrics\n${lc.keyMetrics || 'Not defined'}\n\n`;
+            markdown += `### Unfair Advantage\n${lc.unfairAdvantage || 'Not defined'}\n\n`;
+
+            // Desirability
+            markdown += `---\n\n## 2. Desirability Stress Test\n\n`;
+            markdown += `**Score:** ${canvas.scores?.desirability?.score || 'Not assessed'}\n\n`;
+            markdown += `### Customer Forces\n`;
+            markdown += `- **PUSH:** ${des.pushForces || 'Not defined'}\n`;
+            markdown += `- **PULL:** ${des.pullForces || 'Not defined'}\n`;
+            markdown += `- **INERTIA:** ${des.inertiaForces || 'Not defined'}\n`;
+            markdown += `- **FRICTION:** ${des.frictionForces || 'Not defined'}\n\n`;
+
+            // Viability
+            markdown += `---\n\n## 3. Viability Stress Test\n\n`;
+            markdown += `**Score:** ${canvas.scores?.viability?.score || 'Not assessed'}\n\n`;
+            markdown += `| Metric | Value |\n|--------|-------|\n`;
+            markdown += `| MSC Goal | $${formatNumber(via.mscGoal || 0)}/year |\n`;
+            markdown += `| Monthly Price | $${via.monthlyPrice || 0}/month |\n`;
+            markdown += `| Customers Needed | ${formatNumber(via.activeCustomersNeeded || 0)} |\n`;
+            markdown += `| Model Type | ${via.modelType || 'Unknown'} |\n\n`;
+
+            // Feasibility
+            markdown += `---\n\n## 4. Feasibility Plan\n\n`;
+            markdown += `**Score:** ${canvas.scores?.feasibility?.score || 'Not assessed'}\n\n`;
+            markdown += `### Traction Roadmap (${fea.growthRate || '10x'}/year)\n`;
+            markdown += `- Year 1: ${formatNumber(fea.year1Customers || 0)} customers\n`;
+            markdown += `- Year 2: ${formatNumber(fea.year2Customers || 0)} customers\n`;
+            markdown += `- Year 3: ${formatNumber(fea.year3Customers || 0)} customers\n\n`;
+            markdown += `### MVP Approach\n${fea.mvpType || 'Not selected'}\n\n`;
+
+            // Pitch
+            markdown += `---\n\n## 5. Pitch\n\n`;
+            markdown += `### Elevator Pitch\n${p.elevatorPitch || 'Not defined'}\n\n`;
+            markdown += `### Target Audience\n${p.targetAudience || 'Not selected'}\n\n`;
+
+            markdown += `---\n\n*Generated by Continuous Innovation Framework App*`;
+
+            CIFComponents.downloadFile(
+                markdown,
+                `${canvas.title.replace(/[^a-z0-9]/gi, '_')}_complete_report.md`,
+                'text/markdown'
+            );
+            CIFComponents.ToastManager.success('Complete report exported! Great success!');
+        }
+
+        function updateSectionScore() {
+            const scoreEl = document.getElementById('section-score');
+            const score = canvas.scores?.pitch?.score;
+            if (score) {
+                scoreEl.className = `score-indicator ${score}`;
+                scoreEl.textContent = score === 'green' ? '✓' : score === 'yellow' ? '!' : '✗';
+            }
+        }
+
+        function goToStep(stepIndex) {
+            if (stepIndex >= 0 && stepIndex < WIZARD_STEPS.length) {
+                currentStep = stepIndex;
+                render();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) goToStep(currentStep - 1);
+        }
+
+        function nextStep() {
+            if (currentStep < WIZARD_STEPS.length - 1) goToStep(currentStep + 1);
+            else {
+                CIFComponents.ToastManager.success('Pitch complete! Great success! High five!');
+                setTimeout(() => window.location.href = 'index.html', 1500);
+            }
+        }
+
+        function skipStep() { nextStep(); }
+    </script>
+</body>
+</html>

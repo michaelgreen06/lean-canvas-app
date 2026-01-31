@@ -4,7 +4,7 @@
  */
 
 const STORAGE_KEY = 'cifAppData';
-const DATA_VERSION = 1;
+const DATA_VERSION = 2;
 
 // Generate UUID for canvas IDs
 function generateUUID() {
@@ -45,6 +45,93 @@ function getEmptyCanvasFields() {
     };
 }
 
+// Get default empty desirability fields
+function getEmptyDesirabilityFields() {
+    return {
+        customerSegments: '',
+        earlyAdopters: '',
+        switchingTriggerType: '', // 'bad_experience', 'change_circumstance', 'awareness_event'
+        existingAlternatives: '',
+        problems: '',
+        uvpReview: '',
+        pushForces: '',
+        pullForces: '',
+        inertiaForces: '',
+        frictionForces: '',
+        forcesBalance: null // calculated: 'pass', 'fail', 'neutral'
+    };
+}
+
+// Get default empty viability fields
+function getEmptyViabilityFields() {
+    return {
+        mscGoal: 0, // Annual revenue target
+        monthlyPrice: 0,
+        pricingModel: '', // 'subscription', 'one_time', 'freemium', 'usage_based'
+        existingAlternativesCost: 0, // pricing floor
+        uvpValueEstimate: 0, // pricing ceiling
+        customerLifetimeYears: 3,
+        activeCustomersNeeded: 0, // calculated
+        monthlyChurnRate: 0, // calculated from lifetime
+        minAcquisitionRate: 0, // calculated
+        conversionRate: 1, // percentage
+        leadsRequired: 0, // calculated
+        referralRate: 0, // percentage
+        modelType: '', // 'flies', 'mice', 'rabbits', 'deer', 'elephants', 'whales'
+        modelViable: null // calculated: true/false
+    };
+}
+
+// Get default empty feasibility fields
+function getEmptyFeasibilityFields() {
+    return {
+        growthRate: '10x', // '3x', '5x', '10x'
+        year1Customers: 0, // calculated
+        year2Customers: 0, // calculated
+        year3Customers: 0, // calculated (same as activeCustomersNeeded)
+        nowPlanNotes: '',
+        nextPlanNotes: '',
+        laterPlanNotes: '',
+        problemSolutionFitMetric: '', // 'paying_customers', 'trials', 'leads'
+        problemSolutionFitTarget: 0,
+        mvpType: '', // 'concierge', 'wizard_of_oz', 'foot_in_door', 'release_1'
+        mvpRationale: ''
+    };
+}
+
+// Get default empty pitch fields
+function getEmptyPitchFields() {
+    return {
+        elevatorPitch: '',
+        triggeringEvent: '',
+        jobToBeDone: '',
+        desiredOutcome: '',
+        whatsAtStake: '',
+        targetAudience: '', // 'investor', 'customer', 'advisor'
+        slide1WhyNow: '',
+        slide2WhatsAtStake: '',
+        slide3WhatsChain: '',
+        slide4TheFix: '',
+        slide5YourMoat: '',
+        slide6HowYouMakeMoney: '',
+        slide7KeyMilestones: '',
+        slide8CurrentProgress: '',
+        slide9TheTeam: '',
+        slide10TheAsk: ''
+    };
+}
+
+// Get section scores structure
+function getEmptySectionScores() {
+    return {
+        leanCanvas: { completed: 0, total: 12, score: null },
+        desirability: { completed: 0, total: 7, score: null }, // 'green', 'yellow', 'red'
+        viability: { completed: 0, total: 10, score: null },
+        feasibility: { completed: 0, total: 5, score: null },
+        pitch: { completed: 0, total: 4, score: null }
+    };
+}
+
 // Load all data from localStorage
 function loadData() {
     try {
@@ -78,12 +165,17 @@ function saveData(data) {
 
 // Migrate data from older versions
 function migrateData(data) {
-    // Currently no migrations needed, but structure is in place
     const migrated = {
         ...getDefaultData(),
         ...data,
         version: DATA_VERSION
     };
+
+    // Migrate each canvas to new structure
+    if (migrated.canvases) {
+        migrated.canvases = migrated.canvases.map(canvas => migrateCanvas(canvas));
+    }
+
     saveData(migrated);
     return migrated;
 }
@@ -99,7 +191,8 @@ function getAllCanvases() {
 // Get a single canvas by ID
 function getCanvas(id) {
     const data = loadData();
-    return data.canvases.find(c => c.id === id) || null;
+    const canvas = data.canvases.find(c => c.id === id) || null;
+    return canvas ? migrateCanvas(canvas) : null;
 }
 
 // Create a new canvas
@@ -112,7 +205,15 @@ function createCanvas(title = 'Untitled Canvas') {
         title: title,
         createdAt: now,
         updatedAt: now,
+        currentSection: 'leanCanvas', // 'leanCanvas', 'desirability', 'viability', 'feasibility', 'pitch'
         currentStep: 0,
+        leanCanvas: getEmptyCanvasFields(),
+        desirability: getEmptyDesirabilityFields(),
+        viability: getEmptyViabilityFields(),
+        feasibility: getEmptyFeasibilityFields(),
+        pitch: getEmptyPitchFields(),
+        scores: getEmptySectionScores(),
+        // Legacy support
         fields: getEmptyCanvasFields()
     };
 
@@ -139,16 +240,76 @@ function updateCanvas(id, updates) {
         canvas.title = updates.title;
     }
 
+    // Update currentSection if provided
+    if (updates.currentSection !== undefined) {
+        canvas.currentSection = updates.currentSection;
+    }
+
     // Update currentStep if provided
     if (updates.currentStep !== undefined) {
         canvas.currentStep = updates.currentStep;
     }
 
-    // Update fields if provided
+    // Update fields if provided (legacy support)
     if (updates.fields) {
         canvas.fields = {
             ...canvas.fields,
             ...updates.fields
+        };
+        // Also update leanCanvas for new structure
+        canvas.leanCanvas = {
+            ...canvas.leanCanvas,
+            ...updates.fields
+        };
+    }
+
+    // Update leanCanvas if provided
+    if (updates.leanCanvas) {
+        canvas.leanCanvas = {
+            ...canvas.leanCanvas,
+            ...updates.leanCanvas
+        };
+        // Keep fields in sync for legacy support
+        canvas.fields = canvas.leanCanvas;
+    }
+
+    // Update desirability if provided
+    if (updates.desirability) {
+        canvas.desirability = {
+            ...canvas.desirability,
+            ...updates.desirability
+        };
+    }
+
+    // Update viability if provided
+    if (updates.viability) {
+        canvas.viability = {
+            ...canvas.viability,
+            ...updates.viability
+        };
+    }
+
+    // Update feasibility if provided
+    if (updates.feasibility) {
+        canvas.feasibility = {
+            ...canvas.feasibility,
+            ...updates.feasibility
+        };
+    }
+
+    // Update pitch if provided
+    if (updates.pitch) {
+        canvas.pitch = {
+            ...canvas.pitch,
+            ...updates.pitch
+        };
+    }
+
+    // Update scores if provided
+    if (updates.scores) {
+        canvas.scores = {
+            ...canvas.scores,
+            ...updates.scores
         };
     }
 
@@ -197,7 +358,7 @@ function duplicateCanvas(id) {
     const now = new Date().toISOString();
 
     const newCanvas = {
-        ...original,
+        ...JSON.parse(JSON.stringify(original)), // Deep copy
         id: generateUUID(),
         title: `${original.title} (Copy)`,
         createdAt: now,
@@ -208,6 +369,94 @@ function duplicateCanvas(id) {
     saveData(data);
 
     return newCanvas;
+}
+
+// Update a specific section field
+function updateSectionField(canvasId, section, fieldName, value) {
+    return updateCanvas(canvasId, {
+        [section]: { [fieldName]: value }
+    });
+}
+
+// Calculate section progress
+function calculateSectionProgress(canvas, section) {
+    if (!canvas || !canvas[section]) return 0;
+
+    const fields = canvas[section];
+    const fieldValues = Object.values(fields);
+    const filledFields = fieldValues.filter(v => {
+        if (v === null || v === undefined) return false;
+        if (typeof v === 'string') return v.trim() !== '';
+        if (typeof v === 'number') return v > 0;
+        return true;
+    }).length;
+
+    return Math.round((filledFields / fieldValues.length) * 100);
+}
+
+// Calculate overall progress across all sections
+function calculateOverallProgress(canvas) {
+    if (!canvas) return 0;
+
+    const sections = ['leanCanvas', 'desirability', 'viability', 'feasibility', 'pitch'];
+    let totalProgress = 0;
+
+    sections.forEach(section => {
+        totalProgress += calculateSectionProgress(canvas, section);
+    });
+
+    return Math.round(totalProgress / sections.length);
+}
+
+// Get overall readiness score
+function getOverallReadiness(canvas) {
+    if (!canvas || !canvas.scores) return 'red';
+
+    const scores = canvas.scores;
+    const sectionScores = [
+        scores.desirability?.score,
+        scores.viability?.score,
+        scores.feasibility?.score
+    ].filter(s => s !== null);
+
+    if (sectionScores.length === 0) return 'red';
+
+    const redCount = sectionScores.filter(s => s === 'red').length;
+    const greenCount = sectionScores.filter(s => s === 'green').length;
+
+    if (redCount > 0) return 'red';
+    if (greenCount === sectionScores.length) return 'green';
+    return 'yellow';
+}
+
+// Migrate canvas to new structure if needed
+function migrateCanvas(canvas) {
+    if (!canvas) return canvas;
+
+    // If canvas doesn't have new structure, add it
+    if (!canvas.leanCanvas) {
+        canvas.leanCanvas = canvas.fields || getEmptyCanvasFields();
+    }
+    if (!canvas.desirability) {
+        canvas.desirability = getEmptyDesirabilityFields();
+    }
+    if (!canvas.viability) {
+        canvas.viability = getEmptyViabilityFields();
+    }
+    if (!canvas.feasibility) {
+        canvas.feasibility = getEmptyFeasibilityFields();
+    }
+    if (!canvas.pitch) {
+        canvas.pitch = getEmptyPitchFields();
+    }
+    if (!canvas.scores) {
+        canvas.scores = getEmptySectionScores();
+    }
+    if (!canvas.currentSection) {
+        canvas.currentSection = 'leanCanvas';
+    }
+
+    return canvas;
 }
 
 // Settings operations
@@ -346,6 +595,7 @@ window.CIFStorage = {
     createCanvas,
     updateCanvas,
     updateCanvasField,
+    updateSectionField,
     deleteCanvas,
     duplicateCanvas,
     getSettings,
@@ -355,5 +605,14 @@ window.CIFStorage = {
     formatDate,
     formatDateTime,
     exportCanvasToMarkdown,
-    getEmptyCanvasFields
+    getEmptyCanvasFields,
+    getEmptyDesirabilityFields,
+    getEmptyViabilityFields,
+    getEmptyFeasibilityFields,
+    getEmptyPitchFields,
+    getEmptySectionScores,
+    calculateSectionProgress,
+    calculateOverallProgress,
+    getOverallReadiness,
+    migrateCanvas
 };

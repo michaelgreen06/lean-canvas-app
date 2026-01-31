@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desirability Stress Test - CIF</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="shared/styles.css">
+</head>
+<body class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="btn btn-secondary btn-sm" title="Back to Dashboard">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Dashboard
+                </a>
+                <div id="title-container">
+                    <!-- Editable title inserted here -->
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-500">Section 2 of 5</span>
+                <span class="score-indicator neutral" id="section-score">-</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <!-- Progress -->
+        <div id="progress-container" class="mb-4"></div>
+
+        <!-- Step Navigation -->
+        <div id="step-nav-container" class="mb-6"></div>
+
+        <!-- Step Content -->
+        <div id="step-content" class="wizard-step">
+            <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="wizard-navigation">
+            <button id="prev-btn" class="btn btn-secondary" onclick="prevStep()">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Previous
+            </button>
+            <div class="flex gap-2">
+                <button class="btn btn-secondary" onclick="skipStep()">Skip</button>
+                <button id="next-btn" class="btn btn-primary" onclick="nextStep()">
+                    Next
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="shared/storage.js"></script>
+    <script src="shared/components.js"></script>
+    <script>
+        // Wizard step definitions for Desirability Stress Test (Chapter 2)
+        const WIZARD_STEPS = [
+            {
+                id: 'customerSegments',
+                title: 'Customer Segments',
+                brief: 'List your target customers and users',
+                detailed: `
+                    <p><strong>Customer</strong> = someone who pays for your product</p>
+                    <p><strong>User</strong> = does not pay</p>
+                    <p class="mt-3">Keep labels simple: entrepreneur, homeowner, coffee drinker. This represents your <strong>Total Addressable Market (TAM)</strong>.</p>
+                    <p class="mt-3">If you have multiple actors in your business model, identify your customers first, then identify any other actors (users, influencers, etc.) that will interact with these customers.</p>
+                `,
+                examples: [
+                    { company: 'Starbucks', text: 'Coffee drinkers' },
+                    { company: 'Facebook', text: 'College students #user | Advertisers #customer' },
+                    { company: 'Airbnb', text: 'Travelers #buyer | Property owners #seller' }
+                ],
+                placeholder: 'e.g., Small business owners who need accounting software\n\nTip: Use #user, #customer, #buyer, #seller tags for multisided models',
+                field: 'customerSegments',
+                type: 'textarea'
+            },
+            {
+                id: 'earlyAdopters',
+                title: 'Early Adopters',
+                brief: 'Define characteristics of your ideal starting customer',
+                detailed: `
+                    <p>Early adopters have <strong>ONE key distinguishing trait: a switching trigger</strong></p>
+                    <p class="mt-3"><strong>Three types of switching triggers:</strong></p>
+                    <ol class="list-decimal ml-6 mt-2 space-y-1">
+                        <li><strong>Bad experience</strong> - food poisoning at usual restaurant</li>
+                        <li><strong>Change in circumstance</strong> - special occasion like birthday</li>
+                        <li><strong>Awareness event</strong> - hearing about new popular option</li>
+                    </ol>
+                    <p class="mt-3">Don't go too narrow with demographics/psychographics - focus on the trigger that makes them ready to switch.</p>
+                `,
+                examples: [
+                    { company: 'Starbucks', text: 'People who brew coffee at home (switching trigger: wanting a "third place" experience)' },
+                    { company: 'Facebook', text: 'Ivy League students, starting with Harvard (trigger: new school year)' },
+                    { company: 'Airbnb', text: 'Travelers attending events/conventions (trigger: hotels sold out)' }
+                ],
+                placeholder: 'e.g., Solo entrepreneurs with 0-5 employees, doing their own bookkeeping, spending 5+ hours/week on financial admin\n\nSwitching trigger: Tax deadline approaching',
+                field: 'earlyAdopters',
+                type: 'textarea_with_trigger'
+            },
+            {
+                id: 'existingAlternatives',
+                title: 'Existing Alternatives',
+                brief: 'List how these problems are solved TODAY',
+                detailed: `
+                    <p><strong>TRANSCEND CATEGORY</strong> - competition isn't just direct competitors!</p>
+                    <div class="quote-block mt-3">
+                        <p class="quote-block-text">"Email and spreadsheets have killed more startups than other startups."</p>
+                    </div>
+                    <p class="mt-3">Include:</p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li>Direct competitors</li>
+                        <li>Manual processes & workarounds</li>
+                        <li>DIY solutions (Excel, email)</li>
+                        <li>Doing nothing / ignoring the problem</li>
+                    </ul>
+                    <p class="mt-3">Every successful product had competition in the form of an existing alternative. If there's truly nothing, that's a red flag - maybe the problem isn't painful enough.</p>
+                `,
+                examples: [
+                    { company: 'Starbucks', text: 'Supermarket coffee, Dunkin\' Donuts/McDonald\'s, home-brewed coffee' },
+                    { company: 'Facebook', text: 'Friendster, MySpace' },
+                    { company: 'Airbnb', text: 'Hotels, couch surfing, staying with friends' }
+                ],
+                placeholder: 'e.g., \n- Excel spreadsheets (free but error-prone)\n- Shoebox of receipts (no cost, chaotic)\n- Part-time bookkeeper ($500+/month)\n- QuickBooks (too complex)\n- Ignoring it until tax time (stressful)',
+                field: 'existingAlternatives',
+                type: 'textarea'
+            },
+            {
+                id: 'problems',
+                title: 'Problems',
+                brief: 'What\'s BROKEN with the existing alternatives?',
+                detailed: `
+                    <p>Focus on problems with <strong>EXISTING ALTERNATIVES</strong>, not problems you solve!</p>
+                    <p class="mt-3">This is the <strong>Innovator's Gift</strong>: new problems emerge from OLD solutions.</p>
+                    <div class="quote-block mt-3">
+                        <p class="quote-block-text">"Understanding your customer's problems grants you superpowers."</p>
+                    </div>
+                    <p class="mt-3"><strong>Don't invent problems to justify your solution</strong> (that's Innovator's Bias). Problems create space for innovation.</p>
+                    <p class="mt-3"><strong>Evolution of problems:</strong></p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li>Cassettes → CDs: couldn't instantly play a song</li>
+                        <li>CDs → MP3s: had to buy entire album for one song</li>
+                        <li>MP3s → Streaming: "1000 songs" wasn't enough, wanted 40 million</li>
+                    </ul>
+                `,
+                examples: [
+                    { company: 'Home-brewed coffee', text: 'Time-consuming, inconsistent quality, no social experience' },
+                    { company: 'MySpace/Friendster', text: 'Spam, strangers, low-quality conversations, clunky interface' },
+                    { company: 'Hotels', text: 'Expensive during peak times, impersonal, sold out during events' }
+                ],
+                placeholder: 'e.g., Problems with existing alternatives:\n\n1. Excel/manual: Time-consuming, error-prone, no insights\n2. Bookkeeper: Expensive, communication overhead, still need to organize receipts\n3. QuickBooks: Steep learning curve, overwhelming features, expensive',
+                field: 'problems',
+                type: 'textarea'
+            },
+            {
+                id: 'uvpReview',
+                title: 'UVP Review',
+                brief: 'How will you cause a switch?',
+                detailed: `
+                    <p>Anchor your UVP against <strong>problems with existing alternatives</strong></p>
+                    <p class="mt-3">Your UVP must be:</p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li><strong>Specific</strong> - not vague marketing speak</li>
+                        <li><strong>Familiar</strong> - uses customer's language</li>
+                        <li><strong>Compelling</strong> - promises something worth having</li>
+                    </ul>
+                    <p class="mt-3"><strong>Emotionally better vs Functionally better:</strong></p>
+                    <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li>Functional: "Create business plan faster"</li>
+                        <li>Emotional: "Create business plan that gets read"</li>
+                    </ul>
+                    <div class="quote-block mt-3">
+                        <p class="quote-block-text">"Customers don't care about solutions, they care about achieving desired outcomes."</p>
+                    </div>
+                `,
+                examples: [
+                    { company: 'Starbucks', text: 'UVP: "A third place between work and home"\nConnects to problem: No social experience with home brewing' },
+                    { company: 'Facebook', text: 'UVP: "Connect with friends, not strangers"\nConnects to problem: MySpace was full of spam and strangers' },
+                    { company: 'Airbnb', text: 'UVP: "Find unique accommodations when hotels fail you"\nConnects to problem: Hotels sold out during events' }
+                ],
+                placeholder: 'Review your UVP from the Lean Canvas:\n\nYour UVP: [will be auto-filled]\n\nDoes it connect to the #1 problem you identified?\nIs it emotionally compelling or just functionally better?',
+                field: 'uvpReview',
+                type: 'uvp_review'
+            },
+            {
+                id: 'customerForces',
+                title: 'Customer Forces Canvas',
+                brief: 'Will customers actually SWITCH to your solution?',
+                detailed: `
+                    <p>Four forces determine if customers will switch:</p>
+                    <div class="forces-grid mt-4">
+                        <div class="force-card push">
+                            <div class="force-card-header">
+                                <span class="icon">↗</span>
+                                <span>PUSH</span>
+                            </div>
+                            <p class="text-sm">Problems with current solution that push customer away</p>
+                        </div>
+                        <div class="force-card pull">
+                            <div class="force-card-header">
+                                <span class="icon">↗</span>
+                                <span>PULL</span>
+                            </div>
+                            <p class="text-sm">Promise of something better (your UVP)</p>
+                        </div>
+                        <div class="force-card inertia">
+                            <div class="force-card-header">
+                                <span class="icon">↘</span>
+                                <span>INERTIA</span>
+                            </div>
+                            <p class="text-sm">Resistance to change ("devil you know")</p>
+                        </div>
+                        <div class="force-card friction">
+                            <div class="force-card-header">
+                                <span class="icon">↘</span>
+                                <span>FRICTION</span>
+                            </div>
+                            <p class="text-sm">Anxiety about adopting new solution</p>
+                        </div>
+                    </div>
+                    <p class="mt-4"><strong>Formula:</strong> PUSH + PULL must be > INERTIA + FRICTION</p>
+                    <p class="mt-2">The new way needs to be <strong>3-10x better</strong> to cause a switch!</p>
+                `,
+                examples: [],
+                placeholder: '',
+                field: 'customerForces',
+                type: 'forces_canvas'
+            },
+            {
+                id: 'summary',
+                title: 'Desirability Score Summary',
+                brief: 'Review your desirability stress test results',
+                detailed: `
+                    <p>This summary shows how well you've validated that customers actually <strong>WANT</strong> your product.</p>
+                    <div class="quote-block mt-3">
+                        <p class="quote-block-text">"Love the problem, not your solution."</p>
+                        <p class="quote-block-author">- Ash Maurya</p>
+                    </div>
+                `,
+                examples: [],
+                placeholder: '',
+                field: 'summary',
+                type: 'summary'
+            }
+        ];
+
+        // State
+        let canvas = null;
+        let currentStep = 0;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const canvasId = params.get('id');
+
+            if (!canvasId) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            canvas = CIFStorage.getCanvas(canvasId);
+            if (!canvas) {
+                CIFComponents.ToastManager.error('Canvas not found');
+                setTimeout(() => window.location.href = 'index.html', 1500);
+                return;
+            }
+
+            // Pre-populate from Lean Canvas if desirability fields are empty
+            prefillFromLeanCanvas();
+
+            renderTitle();
+            render();
+        });
+
+        // Pre-fill desirability fields from Lean Canvas
+        function prefillFromLeanCanvas() {
+            const lc = canvas.leanCanvas || canvas.fields;
+            const des = canvas.desirability;
+
+            if (!des.customerSegments && lc.customerSegments) {
+                des.customerSegments = lc.customerSegments;
+            }
+            if (!des.earlyAdopters && lc.earlyAdopters) {
+                des.earlyAdopters = lc.earlyAdopters;
+            }
+            if (!des.existingAlternatives && lc.existingAlternatives) {
+                des.existingAlternatives = lc.existingAlternatives;
+            }
+            if (!des.problems && lc.problem) {
+                des.problems = lc.problem;
+            }
+            if (!des.uvpReview && lc.uniqueValueProposition) {
+                des.uvpReview = lc.uniqueValueProposition;
+            }
+
+            canvas = CIFStorage.updateCanvas(canvas.id, { desirability: des });
+        }
+
+        // Render title
+        function renderTitle() {
+            const container = document.getElementById('title-container');
+            const titleInput = CIFComponents.createEditableTitle(canvas.title, (newTitle) => {
+                canvas = CIFStorage.updateCanvas(canvas.id, { title: newTitle });
+                document.title = `${newTitle} - Desirability`;
+            });
+            container.innerHTML = '';
+            container.appendChild(titleInput);
+            document.title = `${canvas.title} - Desirability`;
+        }
+
+        // Main render function
+        function render() {
+            // Calculate completed steps
+            const completedSteps = [];
+            WIZARD_STEPS.forEach((step, index) => {
+                if (isStepComplete(step)) {
+                    completedSteps.push(index);
+                }
+            });
+
+            // Progress bar
+            document.getElementById('progress-container').innerHTML =
+                CIFComponents.createProgressBar(completedSteps.length, WIZARD_STEPS.length);
+
+            // Step navigation
+            document.getElementById('step-nav-container').innerHTML =
+                CIFComponents.createStepNav(currentStep, WIZARD_STEPS.length, completedSteps);
+
+            // Add click handlers to step nav
+            document.querySelectorAll('.step-nav-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    goToStep(parseInt(btn.dataset.step));
+                });
+            });
+
+            // Render current step
+            renderStep();
+
+            // Update navigation buttons
+            document.getElementById('prev-btn').style.visibility = currentStep === 0 ? 'hidden' : 'visible';
+
+            const nextBtn = document.getElementById('next-btn');
+            if (currentStep === WIZARD_STEPS.length - 1) {
+                nextBtn.innerHTML = 'Continue to Viability <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            } else {
+                nextBtn.innerHTML = 'Next <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            }
+
+            // Update section score indicator
+            updateSectionScore();
+        }
+
+        // Check if step is complete
+        function isStepComplete(step) {
+            const des = canvas.desirability;
+            switch (step.type) {
+                case 'forces_canvas':
+                    return des.pushForces && des.pullForces && des.inertiaForces && des.frictionForces;
+                case 'summary':
+                    return true; // Always "complete"
+                default:
+                    return des[step.field] && des[step.field].trim();
+            }
+        }
+
+        // Render current wizard step
+        function renderStep() {
+            const step = WIZARD_STEPS[currentStep];
+            let contentHtml = '';
+
+            switch (step.type) {
+                case 'textarea':
+                    contentHtml = renderTextareaStep(step);
+                    break;
+                case 'textarea_with_trigger':
+                    contentHtml = renderTextareaWithTriggerStep(step);
+                    break;
+                case 'uvp_review':
+                    contentHtml = renderUvpReviewStep(step);
+                    break;
+                case 'forces_canvas':
+                    contentHtml = renderForcesCanvasStep(step);
+                    break;
+                case 'summary':
+                    contentHtml = renderSummaryStep(step);
+                    break;
+                default:
+                    contentHtml = renderTextareaStep(step);
+            }
+
+            document.getElementById('step-content').innerHTML = contentHtml;
+
+            // Focus first input if applicable
+            setTimeout(() => {
+                const firstInput = document.querySelector('#step-content textarea, #step-content input');
+                if (firstInput && step.type !== 'summary') {
+                    firstInput.focus();
+                }
+            }, 100);
+        }
+
+        // Render textarea step
+        function renderTextareaStep(step) {
+            const currentValue = canvas.desirability[step.field] || '';
+            let examplesHtml = '<div class="space-y-2">';
+            step.examples.forEach(ex => {
+                examplesHtml += CIFComponents.formatExample(ex.company, ex.text);
+            });
+            examplesHtml += '</div>';
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+                ${step.examples.length > 0 ? CIFComponents.createAccordion('accordion-examples', 'Show examples from the book', examplesHtml) : ''}
+
+                <div class="mt-4">
+                    <textarea
+                        id="step-input"
+                        class="wizard-textarea"
+                        placeholder="${step.placeholder}"
+                        oninput="saveFieldValue('${step.field}', this.value)"
+                    >${escapeHtml(currentValue)}</textarea>
+                </div>
+            `;
+        }
+
+        // Render textarea with trigger type step
+        function renderTextareaWithTriggerStep(step) {
+            const currentValue = canvas.desirability[step.field] || '';
+            const triggerType = canvas.desirability.switchingTriggerType || '';
+
+            let examplesHtml = '<div class="space-y-2">';
+            step.examples.forEach(ex => {
+                examplesHtml += CIFComponents.formatExample(ex.company, ex.text);
+            });
+            examplesHtml += '</div>';
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+                ${CIFComponents.createAccordion('accordion-examples', 'Show examples from the book', examplesHtml)}
+
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Switching Trigger Type</label>
+                    <div class="radio-cards mb-4">
+                        <label class="radio-card">
+                            <input type="radio" name="triggerType" value="bad_experience" ${triggerType === 'bad_experience' ? 'checked' : ''} onchange="saveFieldValue('switchingTriggerType', this.value)">
+                            <div class="radio-card-content">
+                                <div class="font-semibold">Bad Experience</div>
+                                <div class="text-xs text-gray-500">Problem with current solution</div>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="triggerType" value="change_circumstance" ${triggerType === 'change_circumstance' ? 'checked' : ''} onchange="saveFieldValue('switchingTriggerType', this.value)">
+                            <div class="radio-card-content">
+                                <div class="font-semibold">Change in Circumstance</div>
+                                <div class="text-xs text-gray-500">Life event or new need</div>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="triggerType" value="awareness_event" ${triggerType === 'awareness_event' ? 'checked' : ''} onchange="saveFieldValue('switchingTriggerType', this.value)">
+                            <div class="radio-card-content">
+                                <div class="font-semibold">Awareness Event</div>
+                                <div class="text-xs text-gray-500">Learning about better option</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Early Adopter Description</label>
+                    <textarea
+                        id="step-input"
+                        class="wizard-textarea"
+                        placeholder="${step.placeholder}"
+                        oninput="saveFieldValue('${step.field}', this.value)"
+                    >${escapeHtml(currentValue)}</textarea>
+                </div>
+            `;
+        }
+
+        // Render UVP review step
+        function renderUvpReviewStep(step) {
+            const leanCanvasUvp = (canvas.leanCanvas || canvas.fields).uniqueValueProposition || '';
+            const currentReview = canvas.desirability.uvpReview || leanCanvasUvp;
+
+            let examplesHtml = '<div class="space-y-2">';
+            step.examples.forEach(ex => {
+                examplesHtml += CIFComponents.formatExample(ex.company, ex.text);
+            });
+            examplesHtml += '</div>';
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+                ${CIFComponents.createAccordion('accordion-examples', 'Show examples from the book', examplesHtml)}
+
+                <div class="mt-4">
+                    ${leanCanvasUvp ? `
+                        <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div class="text-sm font-medium text-blue-800 mb-1">Your UVP from Lean Canvas:</div>
+                            <div class="text-blue-900">${escapeHtml(leanCanvasUvp)}</div>
+                        </div>
+                    ` : ''}
+
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Refined UVP (connecting to problems identified)</label>
+                    <textarea
+                        id="step-input"
+                        class="wizard-textarea"
+                        placeholder="Refine your UVP here. Make sure it:\n\n1. Connects directly to the #1 problem with existing alternatives\n2. Is emotionally compelling (outcome-focused)\n3. Is specific and measurable if possible"
+                        oninput="saveFieldValue('uvpReview', this.value)"
+                    >${escapeHtml(currentReview)}</textarea>
+
+                    <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <div class="text-sm font-medium text-gray-700 mb-2">Checklist - Does your UVP:</div>
+                        <ul class="checklist">
+                            <li class="checklist-item">
+                                <span class="checklist-checkbox"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2"/></svg></span>
+                                <span class="checklist-text">Address the #1 problem you identified?</span>
+                            </li>
+                            <li class="checklist-item">
+                                <span class="checklist-checkbox"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2"/></svg></span>
+                                <span class="checklist-text">Promise an emotional outcome (not just functional)?</span>
+                            </li>
+                            <li class="checklist-item">
+                                <span class="checklist-checkbox"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2"/></svg></span>
+                                <span class="checklist-text">Use language your customers would use?</span>
+                            </li>
+                            <li class="checklist-item">
+                                <span class="checklist-checkbox"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2"/></svg></span>
+                                <span class="checklist-text">Fit in under 120 characters?</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render Customer Forces Canvas step
+        function renderForcesCanvasStep(step) {
+            const des = canvas.desirability;
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+
+                ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
+
+                <!-- Forces Visual -->
+                <div class="forces-diagram mt-6">
+                    <div class="forces-hill"></div>
+                    <div class="forces-customer">🧑</div>
+                    <div class="forces-label push">PUSH ↗</div>
+                    <div class="forces-label pull">PULL ↗</div>
+                    <div class="forces-label inertia">↘ INERTIA</div>
+                    <div class="forces-label friction">↘ FRICTION</div>
+                </div>
+
+                <!-- Forces Input -->
+                <div class="forces-grid mt-6">
+                    <div class="force-card push">
+                        <div class="force-card-header">
+                            <span class="icon">↗</span>
+                            <span>PUSH Forces</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">What pushes customers AWAY from existing alternatives?</p>
+                        <textarea
+                            class="wizard-textarea"
+                            style="min-height: 100px;"
+                            placeholder="e.g., Wasting time on manual data entry, Fear of making costly mistakes, Frustration with complex software"
+                            oninput="saveFieldValue('pushForces', this.value)"
+                        >${escapeHtml(des.pushForces || '')}</textarea>
+                    </div>
+                    <div class="force-card pull">
+                        <div class="force-card-header">
+                            <span class="icon">↗</span>
+                            <span>PULL Forces</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">What attracts customers TO your solution?</p>
+                        <textarea
+                            class="wizard-textarea"
+                            style="min-height: 100px;"
+                            placeholder="e.g., Save 5+ hours/week, Peace of mind at tax time, Simple enough for non-accountants"
+                            oninput="saveFieldValue('pullForces', this.value)"
+                        >${escapeHtml(des.pullForces || '')}</textarea>
+                    </div>
+                    <div class="force-card inertia">
+                        <div class="force-card-header">
+                            <span class="icon">↘</span>
+                            <span>INERTIA Forces</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">What keeps customers with their current solution?</p>
+                        <textarea
+                            class="wizard-textarea"
+                            style="min-height: 100px;"
+                            placeholder="e.g., Already know how Excel works, Historical data in current system, Team is used to current process"
+                            oninput="saveFieldValue('inertiaForces', this.value)"
+                        >${escapeHtml(des.inertiaForces || '')}</textarea>
+                    </div>
+                    <div class="force-card friction">
+                        <div class="force-card-header">
+                            <span class="icon">↘</span>
+                            <span>FRICTION Forces</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">What anxieties do customers have about switching?</p>
+                        <textarea
+                            class="wizard-textarea"
+                            style="min-height: 100px;"
+                            placeholder="e.g., Learning curve for new software, Cost of subscription, Will my data migrate safely?"
+                            oninput="saveFieldValue('frictionForces', this.value)"
+                        >${escapeHtml(des.frictionForces || '')}</textarea>
+                    </div>
+                </div>
+
+                <!-- Forces Balance Calculator -->
+                <div class="forces-balance" id="forces-balance">
+                    ${renderForcesBalance()}
+                </div>
+            `;
+        }
+
+        // Render forces balance
+        function renderForcesBalance() {
+            const des = canvas.desirability;
+            const pushCount = (des.pushForces || '').split('\n').filter(l => l.trim()).length;
+            const pullCount = (des.pullForces || '').split('\n').filter(l => l.trim()).length;
+            const inertiaCount = (des.inertiaForces || '').split('\n').filter(l => l.trim()).length;
+            const frictionCount = (des.frictionForces || '').split('\n').filter(l => l.trim()).length;
+
+            const positive = pushCount + pullCount;
+            const negative = inertiaCount + frictionCount;
+
+            let result, resultClass;
+            if (positive === 0 && negative === 0) {
+                result = 'Fill in forces above';
+                resultClass = 'neutral';
+            } else if (positive > negative * 1.5) {
+                result = 'SWITCH LIKELY';
+                resultClass = 'pass';
+            } else if (positive > negative) {
+                result = 'MARGINAL - Need stronger forces';
+                resultClass = 'neutral';
+            } else {
+                result = 'SWITCH UNLIKELY';
+                resultClass = 'fail';
+            }
+
+            // Save the balance result
+            const forcesBalance = positive > negative * 1.5 ? 'pass' : (positive > negative ? 'neutral' : 'fail');
+            if (des.forcesBalance !== forcesBalance) {
+                canvas = CIFStorage.updateCanvas(canvas.id, {
+                    desirability: { forcesBalance }
+                });
+            }
+
+            return `
+                <div class="forces-scale">
+                    <div class="forces-scale-side positive">
+                        <div class="text-lg font-bold">${positive}</div>
+                        <div class="text-xs">Push + Pull</div>
+                    </div>
+                    <div class="forces-scale-vs">vs</div>
+                    <div class="forces-scale-side negative">
+                        <div class="text-lg font-bold">${negative}</div>
+                        <div class="text-xs">Inertia + Friction</div>
+                    </div>
+                </div>
+                <div class="forces-result ${resultClass}">${result}</div>
+            `;
+        }
+
+        // Render summary step
+        function renderSummaryStep(step) {
+            const des = canvas.desirability;
+            const score = calculateDesirabilityScore();
+
+            return `
+                <div class="wizard-step-header">
+                    <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                    <h2 class="wizard-step-title">${step.title}</h2>
+                    <p class="wizard-step-brief">${step.brief}</p>
+                </div>
+
+                <!-- Overall Score -->
+                <div class="calculator-result mb-6" style="background: ${score.color === 'green' ? 'linear-gradient(135deg, #166534 0%, #22c55e 100%)' : score.color === 'yellow' ? 'linear-gradient(135deg, #a16207 0%, #f59e0b 100%)' : 'linear-gradient(135deg, #991b1b 0%, #ef4444 100%)'}">
+                    <div class="calculator-result-value">${score.label}</div>
+                    <div class="calculator-result-label">Desirability Score</div>
+                    <div class="calculator-result-subtext">${score.message}</div>
+                </div>
+
+                <!-- Summary Details -->
+                <div class="summary-list mb-6">
+                    <div class="summary-item">
+                        <span class="summary-item-label">Customer Segments</span>
+                        <span class="summary-item-value">${des.customerSegments ? '✓ Defined' : '✗ Missing'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">Early Adopters</span>
+                        <span class="summary-item-value">${des.earlyAdopters ? '✓ Defined' : '✗ Missing'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">Switching Trigger</span>
+                        <span class="summary-item-value">${des.switchingTriggerType ? formatTriggerType(des.switchingTriggerType) : '✗ Not selected'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">Existing Alternatives</span>
+                        <span class="summary-item-value">${des.existingAlternatives ? countItems(des.existingAlternatives) + ' identified' : '✗ None listed'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">Problems</span>
+                        <span class="summary-item-value">${des.problems ? countItems(des.problems) + ' identified' : '✗ None listed'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">UVP</span>
+                        <span class="summary-item-value">${des.uvpReview ? '✓ Reviewed' : '✗ Not reviewed'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">Customer Forces</span>
+                        <span class="summary-item-value ${des.forcesBalance === 'pass' ? 'text-green-600' : des.forcesBalance === 'fail' ? 'text-red-600' : ''}">${des.forcesBalance === 'pass' ? '✓ Favorable' : des.forcesBalance === 'fail' ? '✗ Unfavorable' : '○ Neutral/Unknown'}</span>
+                    </div>
+                </div>
+
+                ${score.color !== 'green' ? `
+                    <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg mb-6">
+                        <div class="font-semibold text-amber-800 mb-2">Recommendations</div>
+                        <ul class="list-disc ml-4 text-sm text-amber-700 space-y-1">
+                            ${!des.customerSegments ? '<li>Define your customer segments</li>' : ''}
+                            ${!des.earlyAdopters ? '<li>Identify early adopters with clear switching triggers</li>' : ''}
+                            ${!des.switchingTriggerType ? '<li>Select a switching trigger type</li>' : ''}
+                            ${!des.existingAlternatives ? '<li>List existing alternatives (including manual processes)</li>' : ''}
+                            ${!des.problems ? '<li>Identify problems with existing alternatives</li>' : ''}
+                            ${!des.uvpReview ? '<li>Review and refine your UVP</li>' : ''}
+                            ${des.forcesBalance === 'fail' ? '<li>Strengthen PUSH and PULL forces, or reduce INERTIA and FRICTION</li>' : ''}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                <div class="quote-block">
+                    <p class="quote-block-text">"Innovation is fundamentally about causing a switch."</p>
+                    <p class="quote-block-author">- Ash Maurya, Running Lean</p>
+                </div>
+
+                <div class="flex gap-3 mt-6">
+                    <button class="btn btn-secondary flex-1" onclick="exportSummary()">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M3 12v2h10v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Export Summary
+                    </button>
+                    <a href="viability.html?id=${canvas.id}" class="btn btn-primary flex-1">
+                        Continue to Viability
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </a>
+                </div>
+            `;
+        }
+
+        // Calculate desirability score
+        function calculateDesirabilityScore() {
+            const des = canvas.desirability;
+            let score = 0;
+            let total = 7;
+
+            if (des.customerSegments) score++;
+            if (des.earlyAdopters) score++;
+            if (des.switchingTriggerType) score++;
+            if (des.existingAlternatives) score++;
+            if (des.problems) score++;
+            if (des.uvpReview) score++;
+            if (des.forcesBalance === 'pass') score++;
+            else if (des.forcesBalance === 'neutral') score += 0.5;
+
+            const percentage = (score / total) * 100;
+
+            let color, label, message;
+            if (percentage >= 85) {
+                color = 'green';
+                label = 'STRONG';
+                message = 'Customers are likely to want this product';
+            } else if (percentage >= 60) {
+                color = 'yellow';
+                label = 'MODERATE';
+                message = 'Some gaps in customer desirability validation';
+            } else {
+                color = 'red';
+                label = 'WEAK';
+                message = 'Significant gaps - review before proceeding';
+            }
+
+            // Save score
+            canvas = CIFStorage.updateCanvas(canvas.id, {
+                scores: {
+                    ...canvas.scores,
+                    desirability: { completed: Math.round(score), total, score: color }
+                }
+            });
+
+            return { color, label, message, score, total };
+        }
+
+        // Helper functions
+        function formatTriggerType(type) {
+            const types = {
+                'bad_experience': 'Bad Experience',
+                'change_circumstance': 'Change in Circumstance',
+                'awareness_event': 'Awareness Event'
+            };
+            return types[type] || type;
+        }
+
+        function countItems(text) {
+            return text.split('\n').filter(l => l.trim()).length;
+        }
+
+        // Save field value
+        function saveFieldValue(field, value) {
+            canvas = CIFStorage.updateCanvas(canvas.id, {
+                desirability: { [field]: value }
+            });
+
+            // Update forces balance if needed
+            if (['pushForces', 'pullForces', 'inertiaForces', 'frictionForces'].includes(field)) {
+                const balanceEl = document.getElementById('forces-balance');
+                if (balanceEl) {
+                    balanceEl.innerHTML = renderForcesBalance();
+                }
+            }
+        }
+
+        // Update section score indicator
+        function updateSectionScore() {
+            const scoreEl = document.getElementById('section-score');
+            const des = canvas.desirability;
+            const score = canvas.scores?.desirability?.score;
+
+            if (score) {
+                scoreEl.className = `score-indicator ${score}`;
+                scoreEl.textContent = score === 'green' ? '✓' : score === 'yellow' ? '!' : '✗';
+            }
+        }
+
+        // Navigation
+        function goToStep(stepIndex) {
+            if (stepIndex >= 0 && stepIndex < WIZARD_STEPS.length) {
+                currentStep = stepIndex;
+                render();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                goToStep(currentStep - 1);
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < WIZARD_STEPS.length - 1) {
+                goToStep(currentStep + 1);
+            } else {
+                // Last step - go to viability
+                window.location.href = `viability.html?id=${canvas.id}`;
+            }
+        }
+
+        function skipStep() {
+            nextStep();
+        }
+
+        // Export summary
+        function exportSummary() {
+            const des = canvas.desirability;
+            const score = calculateDesirabilityScore();
+
+            const markdown = `# Desirability Stress Test Summary
+## ${canvas.title}
+
+**Score: ${score.label}** (${score.score}/${score.total})
+${score.message}
+
+---
+
+### Customer Segments
+${des.customerSegments || 'Not defined'}
+
+### Early Adopters
+${des.earlyAdopters || 'Not defined'}
+**Switching Trigger:** ${formatTriggerType(des.switchingTriggerType) || 'Not selected'}
+
+### Existing Alternatives
+${des.existingAlternatives || 'Not defined'}
+
+### Problems with Existing Alternatives
+${des.problems || 'Not defined'}
+
+### Unique Value Proposition
+${des.uvpReview || 'Not reviewed'}
+
+### Customer Forces
+**PUSH:** ${des.pushForces || 'Not defined'}
+**PULL:** ${des.pullForces || 'Not defined'}
+**INERTIA:** ${des.inertiaForces || 'Not defined'}
+**FRICTION:** ${des.frictionForces || 'Not defined'}
+
+**Balance:** ${des.forcesBalance === 'pass' ? 'Favorable for switch' : des.forcesBalance === 'fail' ? 'Unfavorable for switch' : 'Neutral/Unknown'}
+
+---
+*Generated by Continuous Innovation Framework App*
+`;
+
+            CIFComponents.downloadFile(
+                markdown,
+                `${canvas.title.replace(/[^a-z0-9]/gi, '_')}_desirability.md`,
+                'text/markdown'
+            );
+            CIFComponents.ToastManager.success('Summary exported! Very nice!');
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
