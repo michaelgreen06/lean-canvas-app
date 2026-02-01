@@ -456,7 +456,94 @@ function migrateCanvas(canvas) {
         canvas.currentSection = 'leanCanvas';
     }
 
+    // Migrate old pricing models to new ones
+    if (canvas.viability) {
+        if (canvas.viability.pricingModel === 'freemium') {
+            canvas.viability.pricingModel = 'subscription';
+        }
+        if (canvas.viability.pricingModel === 'usage_based') {
+            canvas.viability.pricingModel = 'marketplace';
+        }
+    }
+
     return canvas;
+}
+
+// ============================================
+// Pricing Model Helper Functions
+// ============================================
+
+// Calculate annual revenue per customer based on pricing model
+function getAnnualRevenuePerCustomer(viability) {
+    const { pricingModel, monthlyPrice } = viability;
+    if (!monthlyPrice) return 0;
+    switch (pricingModel) {
+        case 'one_time': return monthlyPrice; // For one_time, monthlyPrice IS the one-time price
+        default: return monthlyPrice * 12; // subscription and marketplace use monthly * 12
+    }
+}
+
+// Check if customer lifetime step should show
+function showCustomerLifetimeStep(pricingModel) {
+    return pricingModel !== 'one_time';
+}
+
+// Get price input label based on pricing model
+function getPriceInputLabel(pricingModel) {
+    switch (pricingModel) {
+        case 'one_time': return { label: 'One-Time Price', suffix: '' };
+        case 'marketplace': return { label: 'Avg Monthly Revenue per User', suffix: '/month' };
+        default: return { label: 'Monthly Price Point', suffix: '/month' };
+    }
+}
+
+// Calculate customers needed based on pricing model
+function calculateActiveCustomersNeeded(viability) {
+    const annualRev = getAnnualRevenuePerCustomer(viability);
+    if (!viability.mscGoal || !annualRev) return 0;
+    return Math.ceil(viability.mscGoal / annualRev);
+}
+
+// Get label for customers needed based on pricing model
+function getCustomersNeededLabel(pricingModel) {
+    if (pricingModel === 'one_time') {
+        return { title: 'Customers to Acquire per Year', subtitle: 'new customers each year to hit goal' };
+    }
+    return { title: 'Active Customers Needed', subtitle: 'paying customers at steady state' };
+}
+
+// Calculate minimum acquisition rate based on pricing model
+function calculateMinAcquisitionRate(viability) {
+    const { pricingModel, activeCustomersNeeded, customerLifetimeYears } = viability;
+    if (!activeCustomersNeeded) return 0;
+
+    if (pricingModel === 'one_time') {
+        // For one-time: need to acquire total customers / 12 each month
+        return Math.ceil(activeCustomersNeeded / 12);
+    }
+    // For subscription/marketplace: need to replace churned customers
+    const churnRate = customerLifetimeYears > 0 ? (1 / (customerLifetimeYears * 12)) : 0;
+    return Math.ceil(activeCustomersNeeded * churnRate);
+}
+
+// Calculate LTV based on pricing model
+function calculateLTV(viability) {
+    const { pricingModel, monthlyPrice, customerLifetimeYears } = viability;
+    if (!monthlyPrice) return 0;
+
+    if (pricingModel === 'one_time') {
+        return monthlyPrice; // LTV = price for one-time
+    }
+    // For subscription/marketplace: monthly * 12 * lifetime years
+    return monthlyPrice * 12 * (customerLifetimeYears || 3);
+}
+
+// Get LTV label based on pricing model
+function getLTVLabel(pricingModel) {
+    if (pricingModel === 'one_time') {
+        return 'Customer Value';
+    }
+    return 'LTV';
 }
 
 // Settings operations
@@ -614,5 +701,14 @@ window.CIFStorage = {
     calculateSectionProgress,
     calculateOverallProgress,
     getOverallReadiness,
-    migrateCanvas
+    migrateCanvas,
+    // Pricing model helpers
+    getAnnualRevenuePerCustomer,
+    showCustomerLifetimeStep,
+    getPriceInputLabel,
+    calculateActiveCustomersNeeded,
+    getCustomersNeededLabel,
+    calculateMinAcquisitionRate,
+    calculateLTV,
+    getLTVLabel
 };

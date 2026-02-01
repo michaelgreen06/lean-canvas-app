@@ -384,8 +384,14 @@
             if (via.mscGoal) {
                 markdown += `---\n\n## Viability Summary\n\n`;
                 markdown += `- **MSC Goal:** $${formatNumber(via.mscGoal)}/year\n`;
-                markdown += `- **Price:** $${via.monthlyPrice || 0}/month\n`;
-                markdown += `- **Customers Needed:** ${formatNumber(via.activeCustomersNeeded || 0)}\n`;
+                markdown += `- **Pricing Model:** ${via.pricingModel || 'subscription'}\n`;
+                if (via.pricingModel === 'one_time') {
+                    markdown += `- **Price:** $${via.monthlyPrice || 0} (one-time)\n`;
+                    markdown += `- **Customers Needed:** ${formatNumber(via.activeCustomersNeeded || 0)}/year\n`;
+                } else {
+                    markdown += `- **Price:** $${via.monthlyPrice || 0}/month\n`;
+                    markdown += `- **Customers Needed:** ${formatNumber(via.activeCustomersNeeded || 0)}\n`;
+                }
                 markdown += `- **Model Type:** ${via.modelType || 'Unknown'}\n\n`;
             }
 

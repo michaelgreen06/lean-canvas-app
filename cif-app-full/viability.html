@@ -288,7 +288,10 @@
             switch (step.id) {
                 case 'mscGoal': return v.mscGoal > 0;
                 case 'pricingModel': return v.monthlyPrice > 0 && v.pricingModel;
-                case 'customerLifetime': return v.customerLifetimeYears > 0;
+                case 'customerLifetime':
+                    // For one_time, this step is always complete (N/A)
+                    if (v.pricingModel === 'one_time') return true;
+                    return v.customerLifetimeYears > 0;
                 case 'activeCustomers': return v.activeCustomersNeeded > 0;
                 case 'minAcquisition': return v.minAcquisitionRate > 0;
                 case 'leadsRequired': return v.leadsRequired > 0;
@@ -393,45 +396,38 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">Pricing Model</label>
                         <div class="radio-cards">
                             <label class="radio-card">
-                                <input type="radio" name="pricingModel" value="subscription" ${v.pricingModel === 'subscription' ? 'checked' : ''} onchange="saveViability('pricingModel', 'subscription')">
+                                <input type="radio" name="pricingModel" value="subscription" ${v.pricingModel === 'subscription' ? 'checked' : ''} onchange="handlePricingModelChange('subscription')">
                                 <div class="radio-card-content">
                                     <div class="font-semibold">Subscription</div>
                                     <div class="text-xs text-gray-500">Monthly/Annual</div>
                                 </div>
                             </label>
                             <label class="radio-card">
-                                <input type="radio" name="pricingModel" value="one_time" ${v.pricingModel === 'one_time' ? 'checked' : ''} onchange="saveViability('pricingModel', 'one_time')">
+                                <input type="radio" name="pricingModel" value="one_time" ${v.pricingModel === 'one_time' ? 'checked' : ''} onchange="handlePricingModelChange('one_time')">
                                 <div class="radio-card-content">
                                     <div class="font-semibold">One-Time</div>
                                     <div class="text-xs text-gray-500">Pay once</div>
                                 </div>
                             </label>
                             <label class="radio-card">
-                                <input type="radio" name="pricingModel" value="freemium" ${v.pricingModel === 'freemium' ? 'checked' : ''} onchange="saveViability('pricingModel', 'freemium')">
+                                <input type="radio" name="pricingModel" value="marketplace" ${v.pricingModel === 'marketplace' ? 'checked' : ''} onchange="handlePricingModelChange('marketplace')">
                                 <div class="radio-card-content">
-                                    <div class="font-semibold">Freemium</div>
-                                    <div class="text-xs text-gray-500">Free + Paid</div>
-                                </div>
-                            </label>
-                            <label class="radio-card">
-                                <input type="radio" name="pricingModel" value="usage_based" ${v.pricingModel === 'usage_based' ? 'checked' : ''} onchange="saveViability('pricingModel', 'usage_based')">
-                                <div class="radio-card-content">
-                                    <div class="font-semibold">Usage-Based</div>
-                                    <div class="text-xs text-gray-500">Pay per use</div>
+                                    <div class="font-semibold">Marketplace/Fee</div>
+                                    <div class="text-xs text-gray-500">Transaction fees</div>
                                 </div>
                             </label>
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Monthly Price Point</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">${CIFStorage.getPriceInputLabel(v.pricingModel).label}</label>
                         <div class="input-with-addon">
                             <span class="input-addon prefix">$</span>
                             <input type="number" class="wizard-textarea" style="min-height: auto; padding: 0.75rem;"
                                 value="${v.monthlyPrice || ''}"
-                                placeholder="e.g., 29"
+                                placeholder="${v.pricingModel === 'one_time' ? 'e.g., 99' : 'e.g., 29'}"
                                 onchange="saveViability('monthlyPrice', parseFloat(this.value) || 0)">
-                            <span class="input-addon suffix">/month</span>
+                            ${CIFStorage.getPriceInputLabel(v.pricingModel).suffix ? `<span class="input-addon suffix">${CIFStorage.getPriceInputLabel(v.pricingModel).suffix}</span>` : ''}
                         </div>
                     </div>
 
@@ -463,8 +459,8 @@
                     ${v.monthlyPrice > 0 ? `
                         <div class="p-4 bg-gray-50 rounded-lg">
                             <div class="text-sm text-gray-600">
-                                <strong>Annual Revenue per Customer:</strong> $${formatNumber(v.monthlyPrice * 12)}/year
-                                ${v.existingAlternativesCost && v.uvpValueEstimate ? `
+                                <strong>${v.pricingModel === 'one_time' ? 'Revenue per Customer:' : 'Annual Revenue per Customer:'}</strong> $${formatNumber(CIFStorage.getAnnualRevenuePerCustomer(v))}${v.pricingModel === 'one_time' ? '' : '/year'}
+                                ${v.existingAlternativesCost && v.uvpValueEstimate && v.pricingModel !== 'one_time' ? `
                                     <br><strong>Pricing Position:</strong> ${v.monthlyPrice < v.existingAlternativesCost ? '⚠️ Below floor (too cheap?)' :
                                     v.monthlyPrice > v.uvpValueEstimate ? '⚠️ Above ceiling (too expensive?)' :
                                     '✓ Within optimal range'}
@@ -479,6 +475,47 @@
         function renderLifetimeStep(step) {
             const v = canvas.viability;
             const churnRate = v.customerLifetimeYears > 0 ? (100 / (v.customerLifetimeYears * 12)).toFixed(2) : 0;
+            const showLifetime = CIFStorage.showCustomerLifetimeStep(v.pricingModel);
+
+            // For one_time, show explanation and auto-complete
+            if (!showLifetime) {
+                return `
+                    <div class="wizard-step-header">
+                        <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
+                        <h2 class="wizard-step-title">${step.title}</h2>
+                        <p class="wizard-step-brief">${step.brief}</p>
+                    </div>
+
+                    <div class="mt-6">
+                        <div class="p-6 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                            <div class="text-4xl mb-3">💡</div>
+                            <div class="text-lg font-semibold text-blue-800 mb-2">Not Applicable for One-Time Purchases</div>
+                            <div class="text-sm text-blue-700">
+                                With a one-time purchase model, customer lifetime and churn don't apply.<br>
+                                Each sale is complete - you need to acquire NEW customers each year to hit your goal.
+                            </div>
+                        </div>
+
+                        <div class="p-4 bg-gray-50 rounded-lg mt-4">
+                            <div class="text-sm text-gray-600">
+                                <strong>For one-time purchases:</strong>
+                                <ul class="list-disc ml-4 mt-2 space-y-1">
+                                    <li>No recurring revenue - each customer pays once</li>
+                                    <li>Growth requires constant new customer acquisition</li>
+                                    <li>Consider upsells, accessories, or future versions for repeat purchases</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 text-center">
+                            <button class="btn btn-primary" onclick="nextStep()">
+                                Continue to Next Step
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
 
             return `
                 <div class="wizard-step-header">
@@ -526,18 +563,37 @@
 
         function renderCustomersCalcStep(step) {
             const v = canvas.viability;
-            const customersNeeded = v.mscGoal && v.monthlyPrice ? Math.ceil(v.mscGoal / (v.monthlyPrice * 12)) : 0;
+            const customersNeeded = CIFStorage.calculateActiveCustomersNeeded(v);
+            const labels = CIFStorage.getCustomersNeededLabel(v.pricingModel);
+            const annualRev = CIFStorage.getAnnualRevenuePerCustomer(v);
+            const isOneTime = v.pricingModel === 'one_time';
 
             // Auto-save calculation
             if (customersNeeded !== v.activeCustomersNeeded) {
                 saveViability('activeCustomersNeeded', customersNeeded);
             }
 
+            // Build formula display based on pricing model
+            let formulaDisplay = '';
+            if (isOneTime) {
+                formulaDisplay = `<strong>Formula:</strong> Customers/Year = $${formatNumber(v.mscGoal)} / $${formatNumber(v.monthlyPrice)}`;
+            } else {
+                formulaDisplay = `<strong>Formula:</strong> Active Customers = $${formatNumber(v.mscGoal)} / ($${v.monthlyPrice} × 12)`;
+            }
+
+            // Build subtext based on pricing model
+            let subtext = '';
+            if (isOneTime) {
+                subtext = `paying $${formatNumber(v.monthlyPrice)} each to hit $${formatNumber(v.mscGoal)} revenue`;
+            } else {
+                subtext = `paying $${v.monthlyPrice}/month to hit $${formatNumber(v.mscGoal)} ARR`;
+            }
+
             return `
                 <div class="wizard-step-header">
                     <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
-                    <h2 class="wizard-step-title">${step.title}</h2>
-                    <p class="wizard-step-brief">${step.brief}</p>
+                    <h2 class="wizard-step-title">${isOneTime ? 'Annual Customer Target' : step.title}</h2>
+                    <p class="wizard-step-brief">${isOneTime ? 'How many NEW customers needed each year?' : step.brief}</p>
                 </div>
                 ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
 
@@ -545,22 +601,32 @@
                     ${v.mscGoal && v.monthlyPrice ? `
                         <div class="p-4 bg-gray-50 rounded-lg mb-4">
                             <div class="text-sm text-gray-600">
-                                <strong>Formula:</strong> Active Customers = $${formatNumber(v.mscGoal)} / ($${v.monthlyPrice} × 12)
+                                ${formulaDisplay}
                             </div>
                         </div>
 
                         <div class="calculator-result">
                             <div class="calculator-result-value">${formatNumber(customersNeeded)}</div>
-                            <div class="calculator-result-label">Active Customers Needed</div>
-                            <div class="calculator-result-subtext">paying $${v.monthlyPrice}/month to hit $${formatNumber(v.mscGoal)} ARR</div>
+                            <div class="calculator-result-label">${labels.title}</div>
+                            <div class="calculator-result-subtext">${subtext}</div>
                         </div>
+
+                        ${isOneTime ? `
+                            <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg mt-4">
+                                <div class="text-sm text-blue-800">
+                                    <strong>💡 One-Time Purchase Note:</strong><br>
+                                    Unlike subscriptions, you need to acquire <strong>${formatNumber(customersNeeded)} NEW customers every year</strong> to maintain your revenue goal.
+                                    There's no recurring revenue to carry over.
+                                </div>
+                            </div>
+                        ` : ''}
                     ` : `
                         <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                             <div class="text-amber-800">
                                 <strong>Missing inputs!</strong> Please complete:
                                 <ul class="list-disc ml-4 mt-1">
                                     ${!v.mscGoal ? '<li>MSC Goal (Step 1)</li>' : ''}
-                                    ${!v.monthlyPrice ? '<li>Monthly Price (Step 2)</li>' : ''}
+                                    ${!v.monthlyPrice ? '<li>Price (Step 2)</li>' : ''}
                                 </ul>
                             </div>
                         </div>
@@ -571,19 +637,55 @@
 
         function renderAcquisitionCalcStep(step) {
             const v = canvas.viability;
+            const isOneTime = v.pricingModel === 'one_time';
+            const minAcquisition = CIFStorage.calculateMinAcquisitionRate(v);
             const churnRate = v.customerLifetimeYears > 0 ? (1 / (v.customerLifetimeYears * 12)) : 0;
-            const minAcquisition = v.activeCustomersNeeded ? Math.ceil(v.activeCustomersNeeded * churnRate) : 0;
 
             if (minAcquisition !== v.minAcquisitionRate) {
                 saveViability('minAcquisitionRate', minAcquisition);
-                saveViability('monthlyChurnRate', churnRate * 100);
+                if (!isOneTime) {
+                    saveViability('monthlyChurnRate', churnRate * 100);
+                }
+            }
+
+            // Build formula and explanation based on pricing model
+            let formulaDisplay = '';
+            let resultLabel = '';
+            let resultSubtext = '';
+            let insightBox = '';
+
+            if (isOneTime) {
+                formulaDisplay = `<strong>Formula:</strong> ${formatNumber(v.activeCustomersNeeded)} customers/year ÷ 12 months = ${minAcquisition} customers/month`;
+                resultLabel = 'New Customers/Month';
+                resultSubtext = `to hit ${formatNumber(v.activeCustomersNeeded)} new customers per year`;
+                insightBox = `
+                    <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg mt-4">
+                        <div class="text-sm text-blue-800">
+                            <strong>💡 One-Time Purchase Reality:</strong><br>
+                            Unlike subscriptions, you must acquire <strong>${minAcquisition} NEW customers every month</strong>.
+                            There's no recurring revenue cushion - if acquisition drops, so does revenue immediately.
+                        </div>
+                    </div>
+                `;
+            } else {
+                formulaDisplay = `<strong>Formula:</strong> ${formatNumber(v.activeCustomersNeeded)} customers × ${(churnRate * 100).toFixed(2)}% churn = ${minAcquisition} customers/month`;
+                resultLabel = 'Customers/Month (Minimum)';
+                resultSubtext = `just to maintain ${formatNumber(v.activeCustomersNeeded)} active customers`;
+                insightBox = `
+                    <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg mt-4">
+                        <div class="text-sm text-blue-800">
+                            <strong>💡 To GROW</strong>, you'll need to acquire more than ${minAcquisition} customers/month.
+                            For 10x growth, you'll need a hockey-stick acquisition curve!
+                        </div>
+                    </div>
+                `;
             }
 
             return `
                 <div class="wizard-step-header">
                     <span class="wizard-step-number">Step ${currentStep + 1} of ${WIZARD_STEPS.length}</span>
-                    <h2 class="wizard-step-title">${step.title}</h2>
-                    <p class="wizard-step-brief">${step.brief}</p>
+                    <h2 class="wizard-step-title">${isOneTime ? 'Monthly Acquisition Target' : step.title}</h2>
+                    <p class="wizard-step-brief">${isOneTime ? 'How many new customers needed per month?' : step.brief}</p>
                 </div>
                 ${CIFComponents.createAccordion('accordion-detailed', 'Show detailed guidance', step.detailed)}
 
@@ -591,22 +693,17 @@
                     ${v.activeCustomersNeeded > 0 ? `
                         <div class="p-4 bg-gray-50 rounded-lg mb-4">
                             <div class="text-sm text-gray-600">
-                                <strong>Formula:</strong> ${formatNumber(v.activeCustomersNeeded)} customers × ${(churnRate * 100).toFixed(2)}% churn = ${minAcquisition} customers/month
+                                ${formulaDisplay}
                             </div>
                         </div>
 
                         <div class="calculator-result">
                             <div class="calculator-result-value">${minAcquisition}</div>
-                            <div class="calculator-result-label">Customers/Month (Minimum)</div>
-                            <div class="calculator-result-subtext">just to maintain ${formatNumber(v.activeCustomersNeeded)} active customers</div>
+                            <div class="calculator-result-label">${resultLabel}</div>
+                            <div class="calculator-result-subtext">${resultSubtext}</div>
                         </div>
 
-                        <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg mt-4">
-                            <div class="text-sm text-blue-800">
-                                <strong>💡 To GROW</strong>, you'll need to acquire more than ${minAcquisition} customers/month.
-                                For 10x growth, you'll need a hockey-stick acquisition curve!
-                            </div>
-                        </div>
+                        ${insightBox}
                     ` : `
                         <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                             <div class="text-amber-800">Complete previous steps to calculate acquisition rate.</div>
@@ -701,7 +798,7 @@
 
         function renderModelChartStep(step) {
             const v = canvas.viability;
-            const annualRevenue = v.monthlyPrice * 12;
+            const annualRevenue = CIFStorage.getAnnualRevenuePerCustomer(v);
 
             // Determine model type based on annual revenue per customer
             let modelType = '';
@@ -777,6 +874,25 @@
 
         function renderModelFixerStep(step) {
             const v = canvas.viability;
+            const isOneTime = v.pricingModel === 'one_time';
+            const priceLabel = CIFStorage.getPriceInputLabel(v.pricingModel);
+            const customersLabel = CIFStorage.getCustomersNeededLabel(v.pricingModel);
+
+            // Dynamic price display
+            let priceDisplay = '';
+            if (isOneTime) {
+                priceDisplay = `$${v.monthlyPrice || 0} (one-time)`;
+            } else {
+                priceDisplay = `$${v.monthlyPrice || 0}/month`;
+            }
+
+            // Dynamic pricing lever text
+            let pricingLeverText = '';
+            if (isOneTime) {
+                pricingLeverText = `If you charged $${(v.monthlyPrice || 10) * 2}, you'd need ${formatNumber(Math.ceil((v.activeCustomersNeeded || 100) / 2))} customers/year`;
+            } else {
+                pricingLeverText = `If you charged $${(v.monthlyPrice || 10) * 2}/month, you'd need ${formatNumber(Math.ceil((v.activeCustomersNeeded || 100) / 2))} customers`;
+            }
 
             return `
                 <div class="wizard-step-header">
@@ -794,12 +910,12 @@
                             <span class="summary-item-value">$${formatNumber(v.mscGoal || 0)}/year</span>
                         </div>
                         <div class="summary-item">
-                            <span class="summary-item-label">Monthly Price</span>
-                            <span class="summary-item-value">$${v.monthlyPrice || 0}/month</span>
+                            <span class="summary-item-label">${priceLabel.label}</span>
+                            <span class="summary-item-value">${priceDisplay}</span>
                         </div>
                         <div class="summary-item">
-                            <span class="summary-item-label">Customers Needed</span>
-                            <span class="summary-item-value">${formatNumber(v.activeCustomersNeeded || 0)}</span>
+                            <span class="summary-item-label">${isOneTime ? 'Customers/Year' : 'Customers Needed'}</span>
+                            <span class="summary-item-value">${formatNumber(v.activeCustomersNeeded || 0)}${isOneTime ? '/year' : ''}</span>
                         </div>
                         <div class="summary-item">
                             <span class="summary-item-label">Monthly Acquisition</span>
@@ -816,7 +932,7 @@
                         <div class="p-4 border border-blue-200 rounded-lg bg-blue-50">
                             <div class="font-semibold text-blue-800">💰 Raise Pricing (Most Underutilized!)</div>
                             <p class="text-sm text-blue-700 mt-1">Double price = half the customers needed</p>
-                            <p class="text-sm text-blue-600 mt-1">If you charged $${(v.monthlyPrice || 10) * 2}/month, you'd need ${formatNumber(Math.ceil((v.activeCustomersNeeded || 100) / 2))} customers</p>
+                            <p class="text-sm text-blue-600 mt-1">${pricingLeverText}</p>
                         </div>
                         <div class="p-4 border border-gray-200 rounded-lg">
                             <div class="font-semibold">🎯 Take on Bigger Problem</div>
@@ -838,6 +954,28 @@
         function renderSummaryStep(step) {
             const v = canvas.viability;
             const score = calculateViabilityScore();
+            const isOneTime = v.pricingModel === 'one_time';
+            const priceLabel = CIFStorage.getPriceInputLabel(v.pricingModel);
+
+            // Build price display
+            let priceDisplay = '✗ Not set';
+            if (v.monthlyPrice) {
+                priceDisplay = isOneTime ? '$' + v.monthlyPrice : '$' + v.monthlyPrice + '/mo';
+            }
+
+            // Build lifetime display
+            let lifetimeDisplay = '';
+            if (isOneTime) {
+                lifetimeDisplay = 'N/A (one-time)';
+            } else {
+                lifetimeDisplay = v.customerLifetimeYears ? v.customerLifetimeYears + ' years' : '✗ Not set';
+            }
+
+            // Build customers display
+            let customersDisplay = '✗ Not calculated';
+            if (v.activeCustomersNeeded) {
+                customersDisplay = formatNumber(v.activeCustomersNeeded) + (isOneTime ? '/year' : '');
+            }
 
             return `
                 <div class="wizard-step-header">
@@ -855,19 +993,23 @@
                 <div class="summary-list mb-6">
                     <div class="summary-item">
                         <span class="summary-item-label">MSC Goal</span>
-                        <span class="summary-item-value">${v.mscGoal ? '$' + formatNumber(v.mscGoal) + ' ARR' : '✗ Not set'}</span>
+                        <span class="summary-item-value">${v.mscGoal ? '$' + formatNumber(v.mscGoal) + (isOneTime ? '/year' : ' ARR') : '✗ Not set'}</span>
                     </div>
                     <div class="summary-item">
-                        <span class="summary-item-label">Monthly Price</span>
-                        <span class="summary-item-value">${v.monthlyPrice ? '$' + v.monthlyPrice + '/mo' : '✗ Not set'}</span>
+                        <span class="summary-item-label">Pricing Model</span>
+                        <span class="summary-item-value">${v.pricingModel ? v.pricingModel.charAt(0).toUpperCase() + v.pricingModel.slice(1).replace('_', ' ') : '✗ Not set'}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-item-label">${priceLabel.label}</span>
+                        <span class="summary-item-value">${priceDisplay}</span>
                     </div>
                     <div class="summary-item">
                         <span class="summary-item-label">Customer Lifetime</span>
-                        <span class="summary-item-value">${v.customerLifetimeYears ? v.customerLifetimeYears + ' years' : '✗ Not set'}</span>
+                        <span class="summary-item-value">${lifetimeDisplay}</span>
                     </div>
                     <div class="summary-item">
-                        <span class="summary-item-label">Customers Needed</span>
-                        <span class="summary-item-value">${v.activeCustomersNeeded ? formatNumber(v.activeCustomersNeeded) : '✗ Not calculated'}</span>
+                        <span class="summary-item-label">${isOneTime ? 'Customers Needed/Year' : 'Customers Needed'}</span>
+                        <span class="summary-item-value">${customersDisplay}</span>
                     </div>
                     <div class="summary-item">
                         <span class="summary-item-label">Model Type</span>
@@ -896,12 +1038,14 @@
 
         function calculateViabilityScore() {
             const v = canvas.viability;
+            const isOneTime = v.pricingModel === 'one_time';
             let points = 0;
-            let total = 8;
+            let total = isOneTime ? 7 : 8;  // One less step for one_time (no lifetime)
 
             if (v.mscGoal > 0) points++;
             if (v.monthlyPrice > 0 && v.pricingModel) points++;
-            if (v.customerLifetimeYears > 0) points++;
+            // For one_time, lifetime is N/A so always counts; for others, check if set
+            if (isOneTime || v.customerLifetimeYears > 0) points++;
             if (v.activeCustomersNeeded > 0) points++;
             if (v.minAcquisitionRate > 0) points++;
             if (v.leadsRequired > 0) points++;
@@ -973,6 +1117,38 @@
             canvas = CIFStorage.getCanvas(canvas.id);
         }
 
+        function handlePricingModelChange(newModel) {
+            const oldModel = canvas.viability.pricingModel;
+
+            // When switching TO one_time, clear lifetime (not applicable)
+            if (newModel === 'one_time' && oldModel !== 'one_time') {
+                canvas = CIFStorage.updateCanvas(canvas.id, {
+                    viability: {
+                        pricingModel: newModel,
+                        customerLifetimeYears: 0  // Clear lifetime for one_time
+                    }
+                });
+            }
+            // When switching FROM one_time, set default lifetime
+            else if (newModel !== 'one_time' && oldModel === 'one_time') {
+                canvas = CIFStorage.updateCanvas(canvas.id, {
+                    viability: {
+                        pricingModel: newModel,
+                        customerLifetimeYears: 3  // Default 3 years
+                    }
+                });
+            }
+            // Otherwise just update the model
+            else {
+                canvas = CIFStorage.updateCanvas(canvas.id, {
+                    viability: { pricingModel: newModel }
+                });
+            }
+
+            canvas = CIFStorage.getCanvas(canvas.id);
+            render();  // Re-render to update UI with new model
+        }
+
         function updateSectionScore() {
             const scoreEl = document.getElementById('section-score');
             const score = canvas.scores?.viability?.score;
@@ -1003,6 +1179,29 @@
         function exportSummary() {
             const v = canvas.viability;
             const score = calculateViabilityScore();
+            const isOneTime = v.pricingModel === 'one_time';
+            const annualRev = CIFStorage.getAnnualRevenuePerCustomer(v);
+            const ltv = CIFStorage.calculateLTV(v);
+
+            // Build pricing line based on model
+            let priceLine = '';
+            if (isOneTime) {
+                priceLine = `| One-Time Price | $${v.monthlyPrice || 0} |`;
+            } else {
+                priceLine = `| Monthly Price | $${v.monthlyPrice || 0}/month |`;
+            }
+
+            // Build customers line based on model
+            let customersLine = isOneTime
+                ? `| Customers Needed/Year | ${formatNumber(v.activeCustomersNeeded || 0)} |`
+                : `| Active Customers Needed | ${formatNumber(v.activeCustomersNeeded || 0)} |`;
+
+            // Build lifetime/churn lines (only for non-one_time)
+            let lifetimeLines = '';
+            if (!isOneTime) {
+                lifetimeLines = `| Customer Lifetime | ${v.customerLifetimeYears || 0} years |
+| Monthly Churn | ${v.monthlyChurnRate?.toFixed(2) || 0}% |`;
+            }
 
             const markdown = `# Viability Stress Test Summary
 ## ${canvas.title}
@@ -1017,15 +1216,16 @@ ${score.message}
 | Metric | Value |
 |--------|-------|
 | MSC Goal | $${formatNumber(v.mscGoal || 0)}/year |
-| Monthly Price | $${v.monthlyPrice || 0}/month |
-| Annual Revenue/Customer | $${formatNumber((v.monthlyPrice || 0) * 12)}/year |
-| Customer Lifetime | ${v.customerLifetimeYears || 0} years |
-| Monthly Churn | ${v.monthlyChurnRate?.toFixed(2) || 0}% |
-| Active Customers Needed | ${formatNumber(v.activeCustomersNeeded || 0)} |
+| Pricing Model | ${v.pricingModel || 'subscription'} |
+${priceLine}
+| ${isOneTime ? 'Revenue/Customer' : 'Annual Revenue/Customer'} | $${formatNumber(annualRev)}${isOneTime ? '' : '/year'} |
+${lifetimeLines}
+${customersLine}
 | Min Monthly Acquisition | ${v.minAcquisitionRate || 0} customers |
 | Lead → Customer Rate | ${v.conversionRate || 1}% |
 | Leads Required | ${formatNumber(v.leadsRequired || 0)}/month |
 | Referral Rate | ${v.referralRate || 0}% |
+| ${CIFStorage.getLTVLabel(v.pricingModel)} | $${formatNumber(ltv)} |
 
 ### Model Type: ${v.modelType ? v.modelType.charAt(0).toUpperCase() + v.modelType.slice(1) : 'Unknown'}
 

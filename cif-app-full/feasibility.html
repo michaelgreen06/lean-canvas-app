@@ -357,24 +357,34 @@
                         <div class="grid grid-cols-3 gap-4 mt-4">
                             <div class="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
                                 <div class="text-2xl font-bold text-green-700">${formatNumber(f.year1Customers || 0)}</div>
-                                <div class="text-sm text-green-600">Year 1 Customers</div>
+                                <div class="text-sm text-green-600">${v.pricingModel === 'one_time' ? 'Year 1 New Customers' : 'Year 1 Customers'}</div>
                                 <div class="text-xs text-green-500 mt-1">~${((f.year1Customers / f.year3Customers) * 100).toFixed(1)}% of goal</div>
                             </div>
                             <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
                                 <div class="text-2xl font-bold text-blue-700">${formatNumber(f.year2Customers || 0)}</div>
-                                <div class="text-sm text-blue-600">Year 2 Customers</div>
+                                <div class="text-sm text-blue-600">${v.pricingModel === 'one_time' ? 'Year 2 New Customers' : 'Year 2 Customers'}</div>
                                 <div class="text-xs text-blue-500 mt-1">~${((f.year2Customers / f.year3Customers) * 100).toFixed(1)}% of goal</div>
                             </div>
                             <div class="p-4 bg-purple-50 border border-purple-200 rounded-lg text-center">
                                 <div class="text-2xl font-bold text-purple-700">${formatNumber(f.year3Customers || 0)}</div>
-                                <div class="text-sm text-purple-600">Year 3 Customers</div>
+                                <div class="text-sm text-purple-600">${v.pricingModel === 'one_time' ? 'Year 3 New Customers' : 'Year 3 Customers'}</div>
                                 <div class="text-xs text-purple-500 mt-1">MSC Goal = $${formatNumber(v.mscGoal)}</div>
                             </div>
                         </div>
 
+                        ${v.pricingModel === 'one_time' ? `
+                            <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg mt-4">
+                                <div class="text-sm text-amber-800">
+                                    <strong>💡 One-Time Purchase Note:</strong> These are <strong>NEW customers each year</strong>.
+                                    With one-time purchases, you need to acquire this many new customers every year to hit your revenue goal.
+                                    There's no recurring revenue from previous years.
+                                </div>
+                            </div>
+                        ` : ''}
+
                         <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg mt-4">
                             <div class="text-sm text-blue-800">
-                                <strong>💡 Key Insight:</strong> With ${f.growthRate || '10x'} growth, you only need <strong>${formatNumber(f.year1Customers)}</strong> customers in Year 1!
+                                <strong>💡 Key Insight:</strong> With ${f.growthRate || '10x'} growth, you only need <strong>${formatNumber(f.year1Customers)}</strong> ${v.pricingModel === 'one_time' ? 'new ' : ''}customers in Year 1!
                                 That's just <strong>${Math.ceil(f.year1Customers / 12)}</strong> customers/month average.
                             </div>
                         </div>
